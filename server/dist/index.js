@@ -1,0 +1,300 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = __importDefault(require("express"));
+const http_1 = require("http");
+const socket_io_1 = require("socket.io");
+const cors_1 = __importDefault(require("cors"));
+const types_1 = require("./types");
+const RoomManager_1 = require("./models/RoomManager");
+const tetris_1 = require("./game/tetris");
+const app = (0, express_1.default)();
+const server = (0, http_1.createServer)(app);
+const io = new socket_io_1.Server(server, {
+    cors: {
+        origin: ["http://localhost:5173", "http://localhost:5174"], // Vite dev server
+        methods: ["GET", "POST"]
+    }
+});
+app.use((0, cors_1.default)({
+    origin: ["http://localhost:5173", "http://localhost:5174"]
+}));
+app.use(express_1.default.json());
+const roomManager = new RoomManager_1.RoomManager();
+const gameLoops = new Map();
+// Basic health check endpoint
+app.get('/health', (req, res) => {
+    const stats = roomManager.getRoomStats();
+    res.json({
+        status: 'healthy',
+        timestamp: new Date().toISOString(),
+        ...stats
+    });
+});
+// Socket.IO connection handling
+io.on('connection', (socket) => {
+    console.log(`User connected: ${socket.id}`);
+    socket.on('create_room', (playerName, callback) => {
+        try {
+            const room = roomManager.createRoom(playerName);
+            const creator = Array.from(room.players.values())[0];
+            socket.data.playerId = creator.id;
+            socket.data.roomId = room.id;
+            socket.join(room.id);
+            callback({
+                success: true,
+                roomCode: room.code
+            });
+            // Send room state to the creator
+            socket.emit('room_joined', {
+                id: room.id,
+                code: room.code,
+                gameState: room.gameState,
+                isGameActive: room.isGameActive,
+                maxPlayers: room.maxPlayers,
+                createdAt: room.createdAt,
+                players: Array.from(room.players.values())
+            });
+            console.log(`Room created: ${room.code} by ${playerName} (ID: ${room.id})`);
+        }
+        catch (error) {
+            console.error('Error creating room:', error, 'for player:', playerName);
+            callback({
+                success: false,
+                error: 'Failed to create room'
+            });
+        }
+    });
+    socket.on('join_room', (roomCode, playerName, callback) => {
+        try {
+            const result = roomManager.joinRoom(roomCode, playerName);
+            if (!result.success) {
+                callback({ success: false, error: result.error });
+                return;
+            }
+            const { room, player } = result;
+            socket.data.playerId = player.id;
+            socket.data.roomId = room.id;
+            socket.join(room.id);
+            callback({ success: true });
+            // Notify all players in the room
+            io.to(room.id).emit('room_joined', {
+                id: room.id,
+                code: room.code,
+                gameState: room.gameState,
+                isGameActive: room.isGameActive,
+                maxPlayers: room.maxPlayers,
+                createdAt: room.createdAt,
+                players: Array.from(room.players.values())
+            });
+            console.log(`Player ${playerName} joined room ${roomCode} (ID: ${room.id})`);
+        }
+        catch (error) {
+            console.error('Error joining room:', error, 'for player:', playerName);
+            callback({
+                success: false,
+                error: 'Failed to join room'
+            });
+        }
+    });
+    socket.on('leave_room', () => {
+        if (socket.data.roomId && socket.data.playerId) {
+            const room = roomManager.getRoom(socket.data.roomId);
+            roomManager.leaveRoom(socket.data.roomId, socket.data.playerId);
+            socket.leave(socket.data.roomId);
+            // Notify other players
+            socket.to(socket.data.roomId).emit('room_left', socket.data.playerId);
+            // Stop game loop if room is empty
+            const gameLoop = gameLoops.get(socket.data.roomId);
+            if (gameLoop && (!room || room.players.size === 0)) {
+                clearInterval(gameLoop);
+                gameLoops.delete(socket.data.roomId);
+            }
+            socket.data.roomId = '';
+            socket.data.playerId = '';
+            console.log(`Player left room`);
+        }
+    });
+    socket.on('player_ready', (isReady) => {
+        if (socket.data.roomId && socket.data.playerId) {
+            const success = roomManager.setPlayerReady(socket.data.roomId, socket.data.playerId, isReady);
+            if (success) {
+                const room = roomManager.getRoom(socket.data.roomId);
+                // Notify all players
+                io.to(socket.data.roomId).emit('player_ready', socket.data.playerId, isReady);
+                // Start game if all players are ready
+                if (room && room.gameState === types_1.GameState.READY) {
+                    console.log(`🚀 Auto-starting game in room ${room.code} in 1 second...`);
+                    setTimeout(() => {
+                        const currentRoom = roomManager.getRoom(socket.data.roomId);
+                        if (currentRoom && currentRoom.gameState === types_1.GameState.READY) {
+                            if (roomManager.startGame(socket.data.roomId)) {
+                                io.to(socket.data.roomId).emit('game_started');
+                                startGameLoop(socket.data.roomId);
+                                console.log(`✅ Game auto-started in room ${currentRoom.code}`);
+                            }
+                            else {
+                                console.log(`❌ Failed to auto-start game in room ${currentRoom.code}`);
+                            }
+                        }
+                        else {
+                            console.log(`⚠️ Room state changed, canceling auto-start for room ${room.code}`);
+                        }
+                    }, 1000); // Small delay for UI feedback
+                }
+                else if (room) {
+                    console.log(`⏳ Room ${room.code} not ready yet (state: ${room.gameState}, players: ${room.players.size})`);
+                }
+            }
+            else {
+                console.log(`❌ Failed to set player ready state for ${socket.data.playerId}`);
+            }
+        }
+    });
+    // Add manual start game event
+    socket.on('start_game', () => {
+        if (socket.data.roomId && socket.data.playerId) {
+            const room = roomManager.getRoom(socket.data.roomId);
+            if (!room) {
+                console.log(`❌ Room not found for manual start: ${socket.data.roomId}`);
+                return;
+            }
+            // Check if player is allowed to start (room creator or all players ready)
+            const playerIds = Array.from(room.players.keys());
+            const isCreator = playerIds[0] === socket.data.playerId; // First player is creator
+            const allReady = room.gameState === types_1.GameState.READY;
+            if (room.players.size >= 2 && (allReady || isCreator)) {
+                console.log(`🎮 Manual game start requested by ${socket.data.playerId} in room ${room.code}`);
+                if (roomManager.startGame(socket.data.roomId)) {
+                    io.to(socket.data.roomId).emit('game_started');
+                    startGameLoop(socket.data.roomId);
+                    console.log(`✅ Game manually started in room ${room.code}`);
+                }
+                else {
+                    console.log(`❌ Failed to manually start game in room ${room.code}`);
+                }
+            }
+            else {
+                console.log(`⚠️ Manual start denied for room ${room.code}: minPlayers=${room.players.size >= 2}, allReady=${allReady}, isCreator=${isCreator}`);
+            }
+        }
+    });
+    socket.on('game_action', (action) => {
+        if (socket.data.roomId && socket.data.playerId) {
+            const room = roomManager.getRoom(socket.data.roomId);
+            if (!room || room.gameState !== types_1.GameState.PLAYING)
+                return;
+            const player = room.players.get(socket.data.playerId);
+            if (!player || player.isGameOver)
+                return;
+            let actionResult = false;
+            switch (action.type) {
+                case 'MOVE_LEFT':
+                    actionResult = (0, tetris_1.movePiece)(player, 'left');
+                    break;
+                case 'MOVE_RIGHT':
+                    actionResult = (0, tetris_1.movePiece)(player, 'right');
+                    break;
+                case 'MOVE_DOWN':
+                    actionResult = (0, tetris_1.movePiece)(player, 'down');
+                    if (!actionResult) {
+                        // Piece couldn't move down, lock it
+                        (0, tetris_1.lockPiece)(player);
+                    }
+                    break;
+                case 'ROTATE':
+                    actionResult = (0, tetris_1.rotatePiece)(player);
+                    break;
+                case 'HARD_DROP':
+                    actionResult = (0, tetris_1.hardDrop)(player);
+                    break;
+            }
+            // Send updated game state to all players
+            io.to(socket.data.roomId).emit('game_state_update', {
+                players: Array.from(room.players.values())
+            });
+            // Check if player lost
+            if (player.isGameOver) {
+                io.to(socket.data.roomId).emit('player_lost', player.id);
+                // Check if game should end
+                const alivePlayers = Array.from(room.players.values()).filter(p => !p.isGameOver);
+                if (alivePlayers.length <= 1) {
+                    const winner = alivePlayers[0];
+                    roomManager.endGame(socket.data.roomId, winner?.id);
+                    const gameLoop = gameLoops.get(socket.data.roomId);
+                    if (gameLoop) {
+                        clearInterval(gameLoop);
+                        gameLoops.delete(socket.data.roomId);
+                    }
+                    io.to(socket.data.roomId).emit('game_ended', winner?.id);
+                    console.log(`Game ended in room ${room.code}, winner: ${winner?.name || 'none'}`);
+                }
+            }
+        }
+    });
+    socket.on('disconnect', () => {
+        console.log(`User disconnected: ${socket.id}`);
+        // Clean up player from room
+        if (socket.data.roomId && socket.data.playerId) {
+            roomManager.leaveRoom(socket.data.roomId, socket.data.playerId);
+            socket.to(socket.data.roomId).emit('room_left', socket.data.playerId);
+            // Stop game loop if room is empty
+            const room = roomManager.getRoom(socket.data.roomId);
+            const gameLoop = gameLoops.get(socket.data.roomId);
+            if (gameLoop && (!room || room.players.size === 0)) {
+                clearInterval(gameLoop);
+                gameLoops.delete(socket.data.roomId);
+            }
+        }
+    });
+});
+function startGameLoop(roomId) {
+    const gameLoop = setInterval(() => {
+        const room = roomManager.getRoom(roomId);
+        if (!room || room.gameState !== types_1.GameState.PLAYING) {
+            clearInterval(gameLoop);
+            gameLoops.delete(roomId);
+            return;
+        }
+        let gameStateChanged = false;
+        // Move pieces down for all players
+        room.players.forEach(player => {
+            if (!player.isGameOver && player.currentPiece) {
+                const moved = (0, tetris_1.movePiece)(player, 'down');
+                if (!moved) {
+                    // Piece couldn't move down, lock it
+                    (0, tetris_1.lockPiece)(player);
+                    gameStateChanged = true;
+                }
+            }
+        });
+        if (gameStateChanged) {
+            // Send updated game state
+            io.to(roomId).emit('game_state_update', {
+                players: Array.from(room.players.values())
+            });
+            // Check for game over conditions
+            const alivePlayers = Array.from(room.players.values()).filter(p => !p.isGameOver);
+            if (alivePlayers.length <= 1) {
+                const winner = alivePlayers[0];
+                roomManager.endGame(roomId, winner?.id);
+                clearInterval(gameLoop);
+                gameLoops.delete(roomId);
+                io.to(roomId).emit('game_ended', winner?.id);
+                console.log(`Game loop ended for room ${room.code}`);
+            }
+        }
+    }, 1000); // 1 second per drop
+    gameLoops.set(roomId, gameLoop);
+}
+// Cleanup old rooms every hour
+setInterval(() => {
+    roomManager.cleanupOldRooms(24);
+}, 60 * 60 * 1000);
+const PORT = process.env.PORT || 3001;
+server.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+});
+//# sourceMappingURL=index.js.map
