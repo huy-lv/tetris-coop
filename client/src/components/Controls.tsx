@@ -1,5 +1,6 @@
 import React from "react";
 import styled from "styled-components";
+import { GAME_CONTROLS, CONTROL_DESCRIPTIONS } from "../constants/gameControls";
 
 const ControlsContainer = styled.div`
   background: rgba(255, 255, 255, 0.1);
@@ -53,24 +54,32 @@ const Controls: React.FC = () => {
       <ControlsTitle>🎮 Controls</ControlsTitle>
       <ControlsList>
         <ControlItem>
-          <KeyBadge>A</KeyBadge>
-          <ActionText>Move Left</ActionText>
+          <KeyBadge>{GAME_CONTROLS.MOVE_LEFT.toUpperCase()}</KeyBadge>
+          <ActionText>
+            {CONTROL_DESCRIPTIONS[GAME_CONTROLS.MOVE_LEFT]}
+          </ActionText>
         </ControlItem>
         <ControlItem>
-          <KeyBadge>D</KeyBadge>
-          <ActionText>Move Right</ActionText>
+          <KeyBadge>{GAME_CONTROLS.MOVE_RIGHT.toUpperCase()}</KeyBadge>
+          <ActionText>
+            {CONTROL_DESCRIPTIONS[GAME_CONTROLS.MOVE_RIGHT]}
+          </ActionText>
         </ControlItem>
         <ControlItem>
-          <KeyBadge>S</KeyBadge>
-          <ActionText>Soft Drop</ActionText>
+          <KeyBadge>{GAME_CONTROLS.SOFT_DROP.toUpperCase()}</KeyBadge>
+          <ActionText>
+            {CONTROL_DESCRIPTIONS[GAME_CONTROLS.SOFT_DROP]}
+          </ActionText>
         </ControlItem>
         <ControlItem>
-          <KeyBadge>N</KeyBadge>
-          <ActionText>Rotate</ActionText>
+          <KeyBadge>{GAME_CONTROLS.ROTATE.toUpperCase()}</KeyBadge>
+          <ActionText>{CONTROL_DESCRIPTIONS[GAME_CONTROLS.ROTATE]}</ActionText>
         </ControlItem>
         <ControlItem>
-          <KeyBadge>J</KeyBadge>
-          <ActionText>Hard Drop</ActionText>
+          <KeyBadge>{GAME_CONTROLS.HARD_DROP.toUpperCase()}</KeyBadge>
+          <ActionText>
+            {CONTROL_DESCRIPTIONS[GAME_CONTROLS.HARD_DROP]}
+          </ActionText>
         </ControlItem>
       </ControlsList>
     </ControlsContainer>

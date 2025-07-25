@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import styled from "styled-components";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSocket } from "../hooks/useSocket";
@@ -9,6 +9,7 @@ import PlayerList from "./PlayerList";
 import GameStats from "./GameStats";
 import NextPiece from "./NextPiece";
 import Controls from "./Controls";
+import { GAME_CONTROLS, REPEATABLE_ACTIONS } from "../constants/gameControls";
 
 const GameContainer = styled.div`
   display: flex;
@@ -133,6 +134,11 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
   const [showMessage, setShowMessage] = useState<string | null>(null);
   const [isReady, setIsReady] = useState(currentPlayer.isReady);
 
+  // Key repeat state management
+  const pressedKeys = useRef<Set<string>>(new Set());
+  const keyIntervals = useRef<Map<string, number>>(new Map());
+  const initialDelayTimers = useRef<Map<string, number>>(new Map());
+
   // Update gameState when room prop changes
   useEffect(() => {
     console.log("TetrisGame: Room prop changed", {
@@ -155,8 +161,9 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
     isRoomCreator,
   });
 
-  const handleKeyPress = useCallback(
-    (event: KeyboardEvent) => {
+  // Function to send game action
+  const sendGameAction = useCallback(
+    (actionType: string) => {
       if (
         !socket ||
         gameState.gameState !== GameState.PLAYING ||
@@ -166,34 +173,132 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
       }
 
       const action: GameAction = {
-        type: "MOVE_LEFT",
+        type: actionType as GameAction["type"],
         playerId: currentPlayer.id,
       };
-
-      switch (event.key.toLowerCase()) {
-        case "a":
-          action.type = "MOVE_LEFT";
-          break;
-        case "d":
-          action.type = "MOVE_RIGHT";
-          break;
-        case "s":
-          action.type = "MOVE_DOWN";
-          break;
-        case "n":
-          action.type = "ROTATE";
-          break;
-        case "j":
-          event.preventDefault();
-          action.type = "HARD_DROP";
-          break;
-        default:
-          return;
-      }
 
       socket.emit("game_action", action);
     },
     [socket, gameState.gameState, currentPlayer.id, currentPlayer.isGameOver]
+  );
+
+  // Clean up intervals and timers
+  const clearKeyTimers = useCallback((key: string) => {
+    const intervalId = keyIntervals.current.get(key);
+    const timerId = initialDelayTimers.current.get(key);
+
+    if (intervalId) {
+      clearInterval(intervalId);
+      keyIntervals.current.delete(key);
+    }
+
+    if (timerId) {
+      clearTimeout(timerId);
+      initialDelayTimers.current.delete(key);
+    }
+  }, []);
+
+  // Start key repeat for movement keys
+  const startKeyRepeat = useCallback(
+    (key: string, actionType: string) => {
+      // Clear any existing timers for this key
+      clearKeyTimers(key);
+
+      // Send initial action immediately
+      sendGameAction(actionType);
+
+      // Set up initial delay before repeat starts (150ms)
+      const initialTimer = setTimeout(() => {
+        // Start repeating with faster interval (50ms)
+        const intervalId = setInterval(() => {
+          if (pressedKeys.current.has(key)) {
+            sendGameAction(actionType);
+          } else {
+            clearKeyTimers(key);
+          }
+        }, 50);
+
+        keyIntervals.current.set(key, intervalId);
+      }, 150);
+
+      initialDelayTimers.current.set(key, initialTimer);
+    },
+    [sendGameAction, clearKeyTimers]
+  );
+
+  const handleKeyDown = useCallback(
+    (event: KeyboardEvent) => {
+      if (
+        !socket ||
+        gameState.gameState !== GameState.PLAYING ||
+        currentPlayer.isGameOver
+      ) {
+        return;
+      }
+
+      const key = event.key.toLowerCase();
+
+      // Only process if key is not already pressed (prevents browser key repeat)
+      if (pressedKeys.current.has(key)) {
+        return;
+      }
+
+      pressedKeys.current.add(key);
+
+      // Check if this is a repeatable action
+      if (
+        REPEATABLE_ACTIONS.includes(key as (typeof REPEATABLE_ACTIONS)[number])
+      ) {
+        let actionType: string;
+        switch (key) {
+          case GAME_CONTROLS.MOVE_LEFT:
+            actionType = "MOVE_LEFT";
+            break;
+          case GAME_CONTROLS.MOVE_RIGHT:
+            actionType = "MOVE_RIGHT";
+            break;
+          case GAME_CONTROLS.SOFT_DROP:
+            actionType = "MOVE_DOWN";
+            break;
+          default:
+            pressedKeys.current.delete(key);
+            return;
+        }
+        startKeyRepeat(key, actionType);
+      } else {
+        // Non-repeatable actions
+        switch (key) {
+          case GAME_CONTROLS.ROTATE:
+            sendGameAction("ROTATE");
+            break;
+          case GAME_CONTROLS.HARD_DROP:
+            sendGameAction("HARD_DROP");
+            break;
+          default:
+            pressedKeys.current.delete(key); // Remove key if not handled
+            return;
+        }
+      }
+    },
+    [
+      socket,
+      gameState.gameState,
+      currentPlayer.isGameOver,
+      startKeyRepeat,
+      sendGameAction,
+    ]
+  );
+
+  const handleKeyUp = useCallback(
+    (event: KeyboardEvent) => {
+      const key = event.key.toLowerCase();
+
+      if (pressedKeys.current.has(key)) {
+        pressedKeys.current.delete(key);
+        clearKeyTimers(key);
+      }
+    },
+    [clearKeyTimers]
   );
 
   useEffect(() => {
@@ -283,9 +388,25 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
   }, [socket, gameState.players]);
 
   useEffect(() => {
-    window.addEventListener("keydown", handleKeyPress);
-    return () => window.removeEventListener("keydown", handleKeyPress);
-  }, [handleKeyPress]);
+    const keyIntervalsRef = keyIntervals.current;
+    const initialDelayTimersRef = initialDelayTimers.current;
+    const pressedKeysRef = pressedKeys.current;
+
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+
+      // Clean up all timers when component unmounts
+      keyIntervalsRef.forEach((intervalId) => clearInterval(intervalId));
+      initialDelayTimersRef.forEach((timerId) => clearTimeout(timerId));
+      keyIntervalsRef.clear();
+      initialDelayTimersRef.clear();
+      pressedKeysRef.clear();
+    };
+  }, [handleKeyDown, handleKeyUp]);
 
   const handleReadyToggle = () => {
     if (!socket) return;
