@@ -18,6 +18,7 @@ import {
   lockPiece,
   holdPiece,
   isValidPosition,
+  addGarbageRow,
 } from "./game/tetris";
 
 const app = express();
@@ -328,11 +329,13 @@ io.on("connection", (socket) => {
       }
 
       if (roomManager.pauseGame(socket.data.roomId)) {
-        console.log(`⏸️ Game paused in room ${room.code} by ${socket.data.playerId}`);
-        
+        console.log(
+          `⏸️ Game paused in room ${room.code} by ${socket.data.playerId}`
+        );
+
         // Notify all players in the room
         io.to(socket.data.roomId).emit("game_paused");
-        
+
         // Pause the game loop by not scheduling the next tick
         const gameLoop = gameLoops.get(socket.data.roomId);
         if (gameLoop) {
@@ -365,17 +368,68 @@ io.on("connection", (socket) => {
       }
 
       if (roomManager.resumeGame(socket.data.roomId)) {
-        console.log(`▶️ Game resumed in room ${room.code} by ${socket.data.playerId}`);
-        
+        console.log(
+          `▶️ Game resumed in room ${room.code} by ${socket.data.playerId}`
+        );
+
         // Notify all players in the room
         io.to(socket.data.roomId).emit("game_resumed");
-        
+
         // Restart the game loop
         startGameLoop(socket.data.roomId);
         console.log(`▶️ Game loop resumed for room ${room.code}`);
       } else {
         console.log(`❌ Failed to resume game in room ${room.code}`);
       }
+    }
+  });
+
+  // Handler for adding garbage rows to players after another player clears lines
+  socket.on("apply_garbage", () => {
+    if (socket.data.roomId && socket.data.playerId) {
+      const room = roomManager.getRoom(socket.data.roomId);
+
+      if (!room || room.gameState !== GameState.PLAYING) return;
+
+      const currentPlayer = room.players.get(socket.data.playerId);
+      if (!currentPlayer || currentPlayer.isGameOver) return;
+
+      // Add a garbage row to the player's board
+      currentPlayer.gameBoard = addGarbageRow(currentPlayer.gameBoard);
+
+      // Check if the garbage row causes game over for the player
+      if (
+        currentPlayer.currentPiece &&
+        !isValidPosition(currentPlayer.gameBoard, currentPlayer.currentPiece)
+      ) {
+        currentPlayer.isGameOver = true;
+        io.to(socket.data.roomId).emit("player_lost", currentPlayer.id);
+
+        // Check if game should end
+        const alivePlayers = Array.from(room.players.values()).filter(
+          (p) => !p.isGameOver
+        );
+        if (alivePlayers.length <= 1) {
+          const winner = alivePlayers[0];
+          roomManager.endGame(socket.data.roomId, winner?.id);
+
+          const gameLoop = gameLoops.get(socket.data.roomId);
+          if (gameLoop) {
+            clearInterval(gameLoop);
+            gameLoops.delete(socket.data.roomId);
+          }
+
+          io.to(socket.data.roomId).emit("game_ended", winner?.id);
+          console.log(
+            `Game ended in room ${room.code}, winner: ${winner?.name || "none"}`
+          );
+        }
+      }
+
+      // Update all players with the new game state
+      io.to(socket.data.roomId).emit("game_state_update", {
+        players: Array.from(room.players.values()),
+      });
     }
   });
 
@@ -492,7 +546,11 @@ function startGameLoop(roomId: string) {
 
   const runGameTick = () => {
     const room = roomManager.getRoom(roomId);
-    if (!room || (room.gameState !== GameState.PLAYING && room.gameState !== GameState.PAUSED)) {
+    if (
+      !room ||
+      (room.gameState !== GameState.PLAYING &&
+        room.gameState !== GameState.PAUSED)
+    ) {
       console.log(
         `🛑 Game loop stopping for room ${roomId}: room=${!!room}, gameState=${
           room?.gameState

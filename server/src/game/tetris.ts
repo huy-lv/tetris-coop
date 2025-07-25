@@ -490,6 +490,23 @@ export function lockPiece(
         dropX: dropX,
       });
 
+      // Send garbage rows to other players if player clears 2 or more rows
+      if (linesCleared >= 2) {
+        // Get the room information
+        const room = io.of("/").adapter.rooms.get(roomId);
+
+        if (room) {
+          // Calculate number of garbage rows to send (1 row per 2 lines cleared)
+          const garbageRowsToSend = Math.floor(linesCleared / 2);
+
+          // Emit garbage rows event to notify other players
+          io.to(roomId).emit("garbage_incoming", {
+            playerId: player.id,
+            rowCount: garbageRowsToSend,
+          });
+        }
+      }
+
       // Call the callback to trigger game state update
       if (onAnimationComplete) {
         onAnimationComplete();
@@ -542,4 +559,26 @@ export function initializePlayer(id: string, name: string): Player {
     canHold: true,
     isGameOver: false,
   };
+}
+
+// Value for garbage row cells
+export const GARBAGE_CELL = 9;
+
+// Add a garbage row to the bottom of a player's board with a randomly placed hole
+export function addGarbageRow(board: number[][]): number[][] {
+  // Create a new board to avoid mutating the original
+  const newBoard = board.map((row) => [...row]);
+
+  // Remove the top row to make space for the garbage row
+  newBoard.shift();
+
+  // Create a garbage row with a random hole
+  const holePosition = Math.floor(Math.random() * BOARD_WIDTH);
+  const garbageRow = Array(BOARD_WIDTH).fill(GARBAGE_CELL);
+  garbageRow[holePosition] = 0; // Create a hole
+
+  // Add the garbage row to the bottom of the board
+  newBoard.push(garbageRow);
+
+  return newBoard;
 }

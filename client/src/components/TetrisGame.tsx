@@ -470,6 +470,32 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
       setTimeout(() => setShowMessage(null), 5000);
     };
 
+    const handleGarbageIncoming = (data: {
+      playerId: string;
+      rowCount: number;
+    }) => {
+      // Don't add garbage to the player who caused it or to players who are already out
+      if (
+        data.playerId !== currentPlayer.id &&
+        !currentPlayer.isGameOver &&
+        gameState.gameState === GameState.PLAYING
+      ) {
+        const playerSendingGarbage = gameState.players.find(
+          (p) => p.id === data.playerId
+        );
+        const playerName = playerSendingGarbage
+          ? playerSendingGarbage.name
+          : "Another player";
+
+        // Show a message about the incoming garbage
+        setShowMessage(`${playerName} sent garbage!`);
+        setTimeout(() => setShowMessage(null), 1000);
+
+        // Apply the garbage to this player
+        socket.emit("apply_garbage");
+      }
+    };
+
     socket.on("room_joined", handleRoomJoined);
     socket.on("room_left", handleRoomLeft);
     socket.on("player_ready", handlePlayerReady);
@@ -479,6 +505,7 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
     socket.on("game_state_update", handleGameStateUpdate);
     socket.on("player_lost", handlePlayerLost);
     socket.on("game_ended", handleGameEnded);
+    socket.on("garbage_incoming", handleGarbageIncoming);
 
     return () => {
       socket.off("room_joined", handleRoomJoined);
@@ -490,8 +517,15 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
       socket.off("game_state_update", handleGameStateUpdate);
       socket.off("player_lost", handlePlayerLost);
       socket.off("game_ended", handleGameEnded);
+      socket.off("garbage_incoming", handleGarbageIncoming);
     };
-  }, [socket, gameState.players]);
+  }, [
+    socket,
+    gameState.players,
+    currentPlayer.id,
+    currentPlayer.isGameOver,
+    gameState.gameState,
+  ]);
 
   useEffect(() => {
     const keyIntervalsRef = keyIntervals.current;
@@ -533,7 +567,7 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
     });
     socket.emit("start_game");
   };
-  
+
   const handlePauseGame = () => {
     if (!socket) return;
     socket.emit("pause_game");
@@ -568,34 +602,43 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
               </PlayerName>
 
               <GameLayoutContainer>
-                <div style={{ position: 'relative' }}>
-                  {(gameState.gameState === GameState.PLAYING || gameState.gameState === GameState.PAUSED) && player.id === currentPlayer.id && (
-                    <motion.button
-                      onClick={gameState.gameState === GameState.PAUSED ? handleResumeGame : handlePauseGame}
-                      style={{
-                        position: 'absolute',
-                        top: '10px',
-                        right: '10px',
-                        width: '40px',
-                        height: '40px',
-                        borderRadius: '50%',
-                        background: 'rgba(0, 0, 0, 0.5)',
-                        border: '2px solid rgba(255, 215, 0, 0.5)',
-                        color: '#ffd700',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        cursor: 'pointer',
-                        zIndex: 100,
-                        padding: 0,
-                        fontSize: '18px'
-                      }}
-                      whileHover={{ scale: 1.1, background: 'rgba(0, 0, 0, 0.7)' }}
-                      whileTap={{ scale: 0.9 }}
-                    >
-                      {gameState.gameState === GameState.PAUSED ? "▶️" : "⏸️"}
-                    </motion.button>
-                  )}
+                <div style={{ position: "relative" }}>
+                  {(gameState.gameState === GameState.PLAYING ||
+                    gameState.gameState === GameState.PAUSED) &&
+                    player.id === currentPlayer.id && (
+                      <motion.button
+                        onClick={
+                          gameState.gameState === GameState.PAUSED
+                            ? handleResumeGame
+                            : handlePauseGame
+                        }
+                        style={{
+                          position: "absolute",
+                          top: "10px",
+                          right: "10px",
+                          width: "40px",
+                          height: "40px",
+                          borderRadius: "50%",
+                          background: "rgba(0, 0, 0, 0.5)",
+                          border: "2px solid rgba(255, 215, 0, 0.5)",
+                          color: "#ffd700",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          cursor: "pointer",
+                          zIndex: 100,
+                          padding: 0,
+                          fontSize: "18px",
+                        }}
+                        whileHover={{
+                          scale: 1.1,
+                          background: "rgba(0, 0, 0, 0.7)",
+                        }}
+                        whileTap={{ scale: 0.9 }}
+                      >
+                        {gameState.gameState === GameState.PAUSED ? "▶️" : "⏸️"}
+                      </motion.button>
+                    )}
                   <GameBoard
                     board={player.gameBoard}
                     currentPiece={player.currentPiece}

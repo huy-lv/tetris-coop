@@ -82,6 +82,7 @@ export interface ServerToClientEvents {
     clearedRows: number[];
     dropX: number;
   }) => void;
+  garbage_incoming: (data: { playerId: string; rowCount: number }) => void;
   player_lost: (playerId: string) => void;
   game_ended: (winnerId?: string) => void;
   error: (message: string) => void;
@@ -106,6 +107,7 @@ export interface ClientToServerEvents {
   start_game: () => void;
   pause_game: () => void;
   resume_game: () => void;
+  apply_garbage: () => void;
   game_action: (action: GameAction) => void;
 }
 
