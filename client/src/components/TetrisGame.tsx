@@ -339,7 +339,7 @@ const TetrisGame: React.FC<TetrisGameProps> = ({ room, currentPlayer, onLeaveRoo
             </ReadyButton>
             
             {/* Show Start Game button for room creator when there are enough players */}
-            {isRoomCreator && gameState.players.length >= 2 && (
+            {isRoomCreator && gameState.players.length >= 1 && (
               <ReadyButton
                 className="ready"
                 onClick={handleStartGame}
@@ -356,7 +356,7 @@ const TetrisGame: React.FC<TetrisGameProps> = ({ room, currentPlayer, onLeaveRoo
             )}
             
             {/* Show waiting message for non-creators */}
-            {!isRoomCreator && gameState.players.length >= 2 && (
+            {!isRoomCreator && gameState.players.length >= 1 && (
               <div style={{
                 padding: '12px',
                 background: 'rgba(255, 255, 255, 0.1)',

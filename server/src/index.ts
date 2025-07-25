@@ -288,7 +288,7 @@ io.on("connection", (socket) => {
       } else {
         console.log(
           `⚠️ Manual start denied for room ${room.code}: minPlayers=${
-            room.players.size >= 2
+            room.players.size >= 1
           }, allReady=${allReady}, isCreator=${isCreator}`
         );
       }

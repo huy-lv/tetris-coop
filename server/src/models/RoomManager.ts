@@ -84,7 +84,7 @@ export class RoomManager {
       `👥 Player "${playerName}" joined room ${room.code} (${room.players.size}/${room.maxPlayers} players)`
     );
 
-    if (room.players.size >= 2) {
+    if (room.players.size >= 1) {
       console.log(
         `✅ Room ${room.code} now has enough players to start! Players need to click "Ready" to begin.`
       );
@@ -126,8 +126,8 @@ export class RoomManager {
 
     player.isReady = isReady;
 
-    // Check if all players are ready and room has at least 2 players
-    if (room.players.size >= 2 && this.areAllPlayersReady(room)) {
+    // Check if all players are ready and room has at least 1 player
+    if (room.players.size >= 1 && this.areAllPlayersReady(room)) {
       room.gameState = GameState.READY;
       console.log(
         `🎮 Room ${room.code}: All ${room.players.size} players are ready! Game will start automatically.`
@@ -138,7 +138,7 @@ export class RoomManager {
         (p) => p.isReady
       ).length;
       console.log(
-        `⏳ Room ${room.code}: ${readyCount}/${room.players.size} players ready (minimum 2 needed to start)`
+        `⏳ Room ${room.code}: ${readyCount}/${room.players.size} players ready (minimum 1 needed to start)`
       );
     }
 
