@@ -271,6 +271,55 @@ export function calculateGhostPiecePosition(
   return ghostPiece;
 }
 
+export function holdPiece(player: Player): boolean {
+  if (!player.currentPiece || !player.canHold) {
+    return false;
+  }
+
+  // If there's no hold piece, save current piece and spawn new one
+  if (!player.holdPiece) {
+    player.holdPiece = {
+      ...player.currentPiece,
+      x: Math.floor(BOARD_WIDTH / 2) - Math.floor(player.currentPiece.shape[0].length / 2),
+      y: 0,
+      rotation: 0,
+      shape: TETROMINOES[player.currentPiece.type][0]
+    };
+    player.currentPiece = player.nextPiece;
+    player.nextPiece = generateRandomPiece();
+  } else {
+    // Swap current piece with hold piece
+    const tempPiece = {
+      ...player.holdPiece,
+      x: Math.floor(BOARD_WIDTH / 2) - Math.floor(player.holdPiece.shape[0].length / 2),
+      y: 0,
+      rotation: 0,
+      shape: TETROMINOES[player.holdPiece.type][0]
+    };
+    
+    player.holdPiece = {
+      ...player.currentPiece,
+      x: Math.floor(BOARD_WIDTH / 2) - Math.floor(player.currentPiece.shape[0].length / 2),
+      y: 0,
+      rotation: 0,
+      shape: TETROMINOES[player.currentPiece.type][0]
+    };
+    
+    player.currentPiece = tempPiece;
+  }
+
+  // Disable hold until next piece locks
+  player.canHold = false;
+
+  // Check if game is over with the new piece
+  if (player.currentPiece && !isValidPosition(player.gameBoard, player.currentPiece)) {
+    player.isGameOver = true;
+    return false;
+  }
+
+  return true;
+}
+
 export function movePiece(
   player: Player,
   direction: "left" | "right" | "down"
@@ -442,6 +491,9 @@ export function lockPiece(
   // Set next piece as current and generate new next piece
   player.currentPiece = player.nextPiece;
   player.nextPiece = generateRandomPiece();
+  
+  // Reset hold ability for next piece
+  player.canHold = true;
 
   // Check if game is over
   if (
@@ -477,6 +529,8 @@ export function initializePlayer(id: string, name: string): Player {
     lines: 0,
     currentPiece,
     nextPiece,
+    holdPiece: undefined,
+    canHold: true,
     isGameOver: false,
   };
 }

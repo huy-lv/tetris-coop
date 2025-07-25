@@ -4,6 +4,7 @@ export const GAME_CONTROLS = {
   SOFT_DROP: "s",
   ROTATE: "n",
   HARD_DROP: "j",
+  HOLD: "b",
 } as const;
 
 export const CONTROL_DESCRIPTIONS = {
@@ -12,6 +13,7 @@ export const CONTROL_DESCRIPTIONS = {
   [GAME_CONTROLS.SOFT_DROP]: "Soft Drop",
   [GAME_CONTROLS.ROTATE]: "Rotate",
   [GAME_CONTROLS.HARD_DROP]: "Hard Drop",
+  [GAME_CONTROLS.HOLD]: "Hold/Swap",
 } as const;
 
 // Actions that should repeat when held down

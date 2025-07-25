@@ -8,6 +8,8 @@ export interface Player {
   lines: number;
   currentPiece?: TetrisPiece;
   nextPiece?: TetrisPiece;
+  holdPiece?: TetrisPiece;
+  canHold: boolean;
   isGameOver: boolean;
 }
 
@@ -53,7 +55,7 @@ export type TetrominoTypeValue =
   (typeof TetrominoType)[keyof typeof TetrominoType];
 
 export interface GameAction {
-  type: "MOVE_LEFT" | "MOVE_RIGHT" | "MOVE_DOWN" | "ROTATE" | "HARD_DROP";
+  type: "MOVE_LEFT" | "MOVE_RIGHT" | "MOVE_DOWN" | "ROTATE" | "HARD_DROP" | "HOLD";
   playerId: string;
 }
 

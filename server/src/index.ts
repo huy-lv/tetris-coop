@@ -16,6 +16,7 @@ import {
   rotatePiece,
   hardDrop,
   lockPiece,
+  holdPiece,
   isValidPosition,
 } from "./game/tetris";
 
@@ -350,6 +351,9 @@ io.on("connection", (socket) => {
             }
           });
           actionResult = !dropResult.gameOver;
+          break;
+        case "HOLD":
+          actionResult = holdPiece(player);
           break;
       }
 

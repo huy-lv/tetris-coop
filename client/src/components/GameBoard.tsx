@@ -11,6 +11,7 @@ const BoardContainer = styled.div`
   background: rgba(0, 0, 0, 0.5);
   padding: 5px;
   box-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
+  display: inline-block;
 `;
 
 const Board = styled.div`
@@ -20,6 +21,8 @@ const Board = styled.div`
   gap: 1px;
   background: #111;
   border-radius: 4px;
+  width: fit-content;
+  height: fit-content;
 `;
 
 const Cell = styled(motion.div)<{

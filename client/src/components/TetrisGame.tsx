@@ -8,6 +8,7 @@ import GameBoard from "./GameBoard";
 import PlayerList from "./PlayerList";
 import GameStats from "./GameStats";
 import NextPiece from "./NextPiece";
+import HoldPiece from "./HoldPiece";
 import Controls from "./Controls";
 import { GAME_CONTROLS, REPEATABLE_ACTIONS } from "../constants/gameControls";
 
@@ -274,6 +275,9 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
           case GAME_CONTROLS.HARD_DROP:
             sendGameAction("HARD_DROP");
             break;
+          case GAME_CONTROLS.HOLD:
+            sendGameAction("HOLD");
+            break;
           default:
             pressedKeys.current.delete(key); // Remove key if not handled
             return;
@@ -451,7 +455,7 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
                 {player.isGameOver && " - OUT"}
               </PlayerName>
 
-              <div style={{ display: "flex", gap: "15px" }}>
+              <div style={{ display: "flex", gap: "15px", alignItems: "flex-start" }}>
                 <GameBoard
                   board={player.gameBoard}
                   currentPiece={player.currentPiece}
@@ -466,6 +470,10 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
                     gap: "15px",
                   }}
                 >
+                  <HoldPiece 
+                    piece={player.holdPiece} 
+                    canHold={player.canHold} 
+                  />
                   <NextPiece piece={player.nextPiece} />
                   <GameStats
                     score={player.score}
