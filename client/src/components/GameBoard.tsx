@@ -67,7 +67,7 @@ const Cell = styled(motion.div)<{
         inset 0 0 15px rgba(255, 255, 255, 0.3);
     }
   }
-  
+
   @keyframes clearExpand {
     0% {
       background-color: ${(props) => BOARD_COLORS[props.cellValue]};
@@ -216,7 +216,7 @@ const GameBoard: React.FC<GameBoardProps> = ({
             const cellKey = `${rowIndex}-${colIndex}`;
             const isCurrentPiece = currentPiecePositions.has(cellKey);
             const isClearing = clearingRows.has(rowIndex);
-            
+
             // Calculate animation delay based on distance from drop point
             const distanceFromDrop = Math.abs(colIndex - dropPosition);
             const clearingDelay = isClearing ? distanceFromDrop * 20 : 0; // 20ms per column

@@ -1,4 +1,4 @@
-import { TetrisPiece, TetrominoType, Player } from '../types';
+import { TetrisPiece, TetrominoType, Player, TestMode } from "../types";
 
 export const BOARD_WIDTH = 10;
 export const BOARD_HEIGHT = 20;
@@ -9,175 +9,200 @@ export const TETROMINOES: { [key in TetrominoType]: number[][][] } = {
       [0, 0, 0, 0],
       [1, 1, 1, 1],
       [0, 0, 0, 0],
-      [0, 0, 0, 0]
+      [0, 0, 0, 0],
     ],
     [
       [0, 0, 1, 0],
       [0, 0, 1, 0],
       [0, 0, 1, 0],
-      [0, 0, 1, 0]
-    ]
+      [0, 0, 1, 0],
+    ],
   ],
   [TetrominoType.O]: [
     [
       [1, 1],
-      [1, 1]
-    ]
+      [1, 1],
+    ],
   ],
   [TetrominoType.T]: [
     [
       [0, 1, 0],
       [1, 1, 1],
-      [0, 0, 0]
+      [0, 0, 0],
     ],
     [
       [0, 1, 0],
       [0, 1, 1],
-      [0, 1, 0]
+      [0, 1, 0],
     ],
     [
       [0, 0, 0],
       [1, 1, 1],
-      [0, 1, 0]
+      [0, 1, 0],
     ],
     [
       [0, 1, 0],
       [1, 1, 0],
-      [0, 1, 0]
-    ]
+      [0, 1, 0],
+    ],
   ],
   [TetrominoType.S]: [
     [
       [0, 1, 1],
       [1, 1, 0],
-      [0, 0, 0]
+      [0, 0, 0],
     ],
     [
       [0, 1, 0],
       [0, 1, 1],
-      [0, 0, 1]
-    ]
+      [0, 0, 1],
+    ],
   ],
   [TetrominoType.Z]: [
     [
       [1, 1, 0],
       [0, 1, 1],
-      [0, 0, 0]
+      [0, 0, 0],
     ],
     [
       [0, 0, 1],
       [0, 1, 1],
-      [0, 1, 0]
-    ]
+      [0, 1, 0],
+    ],
   ],
   [TetrominoType.J]: [
     [
       [1, 0, 0],
       [1, 1, 1],
-      [0, 0, 0]
+      [0, 0, 0],
     ],
     [
       [0, 1, 1],
       [0, 1, 0],
-      [0, 1, 0]
+      [0, 1, 0],
     ],
     [
       [0, 0, 0],
       [1, 1, 1],
-      [0, 0, 1]
+      [0, 0, 1],
     ],
     [
       [0, 1, 0],
       [0, 1, 0],
-      [1, 1, 0]
-    ]
+      [1, 1, 0],
+    ],
   ],
   [TetrominoType.L]: [
     [
       [0, 0, 1],
       [1, 1, 1],
-      [0, 0, 0]
+      [0, 0, 0],
     ],
     [
       [0, 1, 0],
       [0, 1, 0],
-      [0, 1, 1]
+      [0, 1, 1],
     ],
     [
       [0, 0, 0],
       [1, 1, 1],
-      [1, 0, 0]
+      [1, 0, 0],
     ],
     [
       [1, 1, 0],
       [0, 1, 0],
-      [0, 1, 0]
-    ]
-  ]
+      [0, 1, 0],
+    ],
+  ],
 };
 
 export function createEmptyBoard(): number[][] {
-  return Array(BOARD_HEIGHT).fill(null).map(() => Array(BOARD_WIDTH).fill(0));
+  return Array(BOARD_HEIGHT)
+    .fill(null)
+    .map(() => Array(BOARD_WIDTH).fill(0));
 }
 
 export function generateRandomPiece(): TetrisPiece {
-  const types = Object.values(TetrominoType);
-  const randomType = types[Math.floor(Math.random() * types.length)];
+  // In test mode, always generate O pieces
+  const randomType = TestMode
+    ? TetrominoType.O
+    : (() => {
+        const types = Object.values(TetrominoType);
+        return types[Math.floor(Math.random() * types.length)];
+      })();
+
   const shape = TETROMINOES[randomType][0];
-  
+
   return {
     type: randomType,
     x: Math.floor(BOARD_WIDTH / 2) - Math.floor(shape[0].length / 2),
     y: 0,
     rotation: 0,
-    shape
+    shape,
   };
 }
 
-export function isValidPosition(board: number[][], piece: TetrisPiece, newX?: number, newY?: number, newRotation?: number): boolean {
+export function isValidPosition(
+  board: number[][],
+  piece: TetrisPiece,
+  newX?: number,
+  newY?: number,
+  newRotation?: number
+): boolean {
   const x = newX !== undefined ? newX : piece.x;
   const y = newY !== undefined ? newY : piece.y;
   const rotation = newRotation !== undefined ? newRotation : piece.rotation;
-  
-  const shape = TETROMINOES[piece.type][rotation % TETROMINOES[piece.type].length];
-  
+
+  const shape =
+    TETROMINOES[piece.type][rotation % TETROMINOES[piece.type].length];
+
   for (let row = 0; row < shape.length; row++) {
     for (let col = 0; col < shape[row].length; col++) {
       if (shape[row][col]) {
         const newRow = y + row;
         const newCol = x + col;
-        
-        if (newRow < 0 || newRow >= BOARD_HEIGHT || newCol < 0 || newCol >= BOARD_WIDTH) {
+
+        if (
+          newRow < 0 ||
+          newRow >= BOARD_HEIGHT ||
+          newCol < 0 ||
+          newCol >= BOARD_WIDTH
+        ) {
           return false;
         }
-        
+
         if (board[newRow][newCol]) {
           return false;
         }
       }
     }
   }
-  
+
   return true;
 }
 
 export function placePiece(board: number[][], piece: TetrisPiece): number[][] {
-  const newBoard = board.map(row => [...row]);
+  const newBoard = board.map((row) => [...row]);
   const shape = piece.shape;
-  
+
   for (let row = 0; row < shape.length; row++) {
     for (let col = 0; col < shape[row].length; col++) {
       if (shape[row][col]) {
         const boardRow = piece.y + row;
         const boardCol = piece.x + col;
-        
-        if (boardRow >= 0 && boardRow < BOARD_HEIGHT && boardCol >= 0 && boardCol < BOARD_WIDTH) {
+
+        if (
+          boardRow >= 0 &&
+          boardRow < BOARD_HEIGHT &&
+          boardCol >= 0 &&
+          boardCol < BOARD_WIDTH
+        ) {
           newBoard[boardRow][boardCol] = getTetrominoNumber(piece.type);
         }
       }
     }
   }
-  
+
   return newBoard;
 }
 
@@ -189,31 +214,36 @@ function getTetrominoNumber(type: TetrominoType): number {
     [TetrominoType.S]: 4,
     [TetrominoType.Z]: 5,
     [TetrominoType.J]: 6,
-    [TetrominoType.L]: 7
+    [TetrominoType.L]: 7,
   };
   return typeMap[type];
 }
 
-export function clearLines(board: number[][]): { newBoard: number[][]; linesCleared: number } {
-  const newBoard = board.filter(row => row.some(cell => cell === 0));
+export function clearLines(board: number[][]): {
+  newBoard: number[][];
+  linesCleared: number;
+} {
+  const newBoard = board.filter((row) => row.some((cell) => cell === 0));
   const linesCleared = BOARD_HEIGHT - newBoard.length;
-  
+
   while (newBoard.length < BOARD_HEIGHT) {
     newBoard.unshift(Array(BOARD_WIDTH).fill(0));
   }
-  
+
   return { newBoard, linesCleared };
 }
 
-export function detectClearableLines(board: number[][]): { clearedRowIndices: number[] } {
+export function detectClearableLines(board: number[][]): {
+  clearedRowIndices: number[];
+} {
   const clearedRowIndices: number[] = [];
-  
+
   for (let row = 0; row < BOARD_HEIGHT; row++) {
-    if (board[row].every(cell => cell !== 0)) {
+    if (board[row].every((cell) => cell !== 0)) {
       clearedRowIndices.push(row);
     }
   }
-  
+
   return { clearedRowIndices };
 }
 
@@ -222,44 +252,58 @@ export function calculateScore(linesCleared: number, level: number): number {
   return baseScores[linesCleared] * (level + 1);
 }
 
-export function movePiece(player: Player, direction: 'left' | 'right' | 'down'): boolean {
+export function movePiece(
+  player: Player,
+  direction: "left" | "right" | "down"
+): boolean {
   if (!player.currentPiece) return false;
-  
+
   let newX = player.currentPiece.x;
   let newY = player.currentPiece.y;
-  
+
   switch (direction) {
-    case 'left':
+    case "left":
       newX--;
       break;
-    case 'right':
+    case "right":
       newX++;
       break;
-    case 'down':
+    case "down":
       newY++;
       break;
   }
-  
+
   if (isValidPosition(player.gameBoard, player.currentPiece, newX, newY)) {
     player.currentPiece.x = newX;
     player.currentPiece.y = newY;
     return true;
   }
-  
+
   return false;
 }
 
 export function rotatePiece(player: Player): boolean {
   if (!player.currentPiece) return false;
-  
-  const newRotation = (player.currentPiece.rotation + 1) % TETROMINOES[player.currentPiece.type].length;
-  
-  if (isValidPosition(player.gameBoard, player.currentPiece, undefined, undefined, newRotation)) {
+
+  const newRotation =
+    (player.currentPiece.rotation + 1) %
+    TETROMINOES[player.currentPiece.type].length;
+
+  if (
+    isValidPosition(
+      player.gameBoard,
+      player.currentPiece,
+      undefined,
+      undefined,
+      newRotation
+    )
+  ) {
     player.currentPiece.rotation = newRotation;
-    player.currentPiece.shape = TETROMINOES[player.currentPiece.type][newRotation];
+    player.currentPiece.shape =
+      TETROMINOES[player.currentPiece.type][newRotation];
     return true;
   }
-  
+
   return false;
 }
 
@@ -274,13 +318,15 @@ export function hardDrop(
   dropX?: number;
 } {
   if (!player.currentPiece) return { gameOver: false };
-  
+
   let newY = player.currentPiece.y;
-  
-  while (isValidPosition(player.gameBoard, player.currentPiece, undefined, newY + 1)) {
+
+  while (
+    isValidPosition(player.gameBoard, player.currentPiece, undefined, newY + 1)
+  ) {
     newY++;
   }
-  
+
   player.currentPiece.y = newY;
   return lockPiece(player, roomId, io, onAnimationComplete);
 }
@@ -304,15 +350,15 @@ export function lockPiece(
 
   // First detect which lines need to be cleared
   const { clearedRowIndices } = detectClearableLines(player.gameBoard);
-  
+
   if (clearedRowIndices.length > 0) {
     // Emit animation start event
     io.to(roomId).emit("lines_clearing", {
       playerId: player.id,
       clearedRows: clearedRowIndices,
-      dropX: dropX
+      dropX: dropX,
     });
-    
+
     // Delay the actual clearing to allow animation to play
     setTimeout(() => {
       // Now actually clear the lines
@@ -320,17 +366,17 @@ export function lockPiece(
       player.gameBoard = newBoard;
       player.lines += linesCleared;
       player.score += calculateScore(linesCleared, player.level);
-      
+
       // Update level (every 10 lines)
       player.level = Math.floor(player.lines / 10);
-      
+
       // Emit completion event
       io.to(roomId).emit("lines_cleared", {
         playerId: player.id,
         clearedRows: clearedRowIndices,
-        dropX: dropX
+        dropX: dropX,
       });
-      
+
       // Call the callback to trigger game state update
       if (onAnimationComplete) {
         onAnimationComplete();
@@ -365,7 +411,7 @@ export function lockPiece(
 export function initializePlayer(id: string, name: string): Player {
   const currentPiece = generateRandomPiece();
   const nextPiece = generateRandomPiece();
-  
+
   return {
     id,
     name,
@@ -376,6 +422,6 @@ export function initializePlayer(id: string, name: string): Player {
     lines: 0,
     currentPiece,
     nextPiece,
-    isGameOver: false
+    isGameOver: false,
   };
 }
