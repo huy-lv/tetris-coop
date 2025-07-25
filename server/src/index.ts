@@ -274,7 +274,10 @@ io.on("connection", (socket) => {
       const allReady = room.gameState === GameState.READY;
       const gameFinished = room.gameState === GameState.FINISHED;
 
-      if (room.players.size >= 1 && (allReady || isCreator || (gameFinished && isCreator))) {
+      if (
+        room.players.size >= 1 &&
+        (allReady || isCreator || (gameFinished && isCreator))
+      ) {
         console.log(
           `🎮 Manual game start/restart requested by ${socket.data.playerId} in room ${room.code}`
         );

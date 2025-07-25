@@ -26,6 +26,7 @@ const Cell = styled(motion.div)<{
   cellValue: number;
   isCurrentPlayer: boolean;
   isCurrentPiece?: boolean;
+  isGhostPiece?: boolean;
   isClearing?: boolean;
   clearingDelay?: number;
 }>`
@@ -48,6 +49,15 @@ const Cell = styled(motion.div)<{
     `
     box-shadow: 0 0 15px rgba(255, 255, 255, 0.6), inset 0 0 10px rgba(255, 255, 255, 0.2);
     animation: pulse 1.5s ease-in-out infinite alternate;
+  `}
+
+  ${(props) =>
+    props.isGhostPiece &&
+    `
+    background-color: rgba(128, 128, 128) !important;
+    border: 1px solid rgba(128, 128, 128, 0.6);
+    opacity: 0.6;
+    box-shadow: none;
   `}
   
   ${(props) =>
@@ -152,61 +162,147 @@ const GameBoard: React.FC<GameBoardProps> = ({
       socket.off("lines_cleared", handleLinesCleared);
     };
   }, [socket, playerId]);
-  // Create a copy of the board to render with the current piece
-  const { renderBoard, currentPiecePositions } = React.useMemo(() => {
-    const newBoard = board.map((row) => [...row]);
-    const piecePositions = new Set<string>();
 
-    // Add current piece to the board for rendering
-    if (currentPiece && isCurrentPlayer) {
-      const { x, y, shape, type } = currentPiece;
+  // Helper function to check if a position is valid (client-side validation)
+  const isValidPosition = (
+    board: number[][],
+    piece: TetrisPiece,
+    testX?: number,
+    testY?: number
+  ): boolean => {
+    const x = testX !== undefined ? testX : piece.x;
+    const y = testY !== undefined ? testY : piece.y;
+    const shape = piece.shape;
 
-      // Map piece type to color index
-      const pieceColorIndex = (() => {
-        switch (type) {
-          case "I":
-            return 1;
-          case "O":
-            return 2;
-          case "T":
-            return 3;
-          case "S":
-            return 4;
-          case "Z":
-            return 5;
-          case "J":
-            return 6;
-          case "L":
-            return 7;
-          default:
-            return 8; // fallback to white
-        }
-      })();
+    for (let row = 0; row < shape.length; row++) {
+      for (let col = 0; col < shape[row].length; col++) {
+        if (shape[row][col]) {
+          const newRow = y + row;
+          const newCol = x + col;
 
-      for (let row = 0; row < shape.length; row++) {
-        for (let col = 0; col < shape[row].length; col++) {
-          if (shape[row][col]) {
-            const boardRow = y + row;
-            const boardCol = x + col;
+          if (newRow < 0 || newRow >= 20 || newCol < 0 || newCol >= 10) {
+            return false;
+          }
 
-            if (
-              boardRow >= 0 &&
-              boardRow < 20 &&
-              boardCol >= 0 &&
-              boardCol < 10
-            ) {
-              // Use the piece-specific color index instead of generic 8
-              newBoard[boardRow][boardCol] = pieceColorIndex;
-              // Track positions of current piece
-              piecePositions.add(`${boardRow}-${boardCol}`);
-            }
+          if (board[newRow][newCol]) {
+            return false;
           }
         }
       }
     }
 
-    return { renderBoard: newBoard, currentPiecePositions: piecePositions };
-  }, [board, currentPiece, isCurrentPlayer]);
+    return true;
+  };
+
+  // Calculate ghost piece position
+  const calculateGhostPiece = React.useCallback(
+    (board: number[][], piece: TetrisPiece): TetrisPiece | null => {
+      if (!piece) return null;
+
+      const ghostPiece = {
+        ...piece,
+        y: piece.y,
+      };
+
+      // Drop the ghost piece to the lowest valid position
+      while (isValidPosition(board, ghostPiece, undefined, ghostPiece.y + 1)) {
+        ghostPiece.y++;
+      }
+
+      // Only show ghost if it's different from current position
+      return ghostPiece.y !== piece.y ? ghostPiece : null;
+    },
+    []
+  );
+
+  // Create a copy of the board to render with the current piece and ghost piece
+  const { renderBoard, currentPiecePositions, ghostPiecePositions } =
+    React.useMemo(() => {
+      const newBoard = board.map((row) => [...row]);
+      const piecePositions = new Set<string>();
+      const ghostPositions = new Set<string>();
+
+      // Calculate and add ghost piece first (so it appears behind the current piece)
+      if (currentPiece && isCurrentPlayer) {
+        const ghostPiece = calculateGhostPiece(board, currentPiece);
+
+        if (ghostPiece) {
+          const { x, y, shape } = ghostPiece;
+
+          for (let row = 0; row < shape.length; row++) {
+            for (let col = 0; col < shape[row].length; col++) {
+              if (shape[row][col]) {
+                const boardRow = y + row;
+                const boardCol = x + col;
+
+                if (
+                  boardRow >= 0 &&
+                  boardRow < 20 &&
+                  boardCol >= 0 &&
+                  boardCol < 10
+                ) {
+                  ghostPositions.add(`${boardRow}-${boardCol}`);
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // Add current piece to the board for rendering
+      if (currentPiece && isCurrentPlayer) {
+        const { x, y, shape, type } = currentPiece;
+
+        // Map piece type to color index
+        const pieceColorIndex = (() => {
+          switch (type) {
+            case "I":
+              return 1;
+            case "O":
+              return 2;
+            case "T":
+              return 3;
+            case "S":
+              return 4;
+            case "Z":
+              return 5;
+            case "J":
+              return 6;
+            case "L":
+              return 7;
+            default:
+              return 8; // fallback to white
+          }
+        })();
+
+        for (let row = 0; row < shape.length; row++) {
+          for (let col = 0; col < shape[row].length; col++) {
+            if (shape[row][col]) {
+              const boardRow = y + row;
+              const boardCol = x + col;
+
+              if (
+                boardRow >= 0 &&
+                boardRow < 20 &&
+                boardCol >= 0 &&
+                boardCol < 10
+              ) {
+                // Use the piece-specific color index instead of generic 8
+                newBoard[boardRow][boardCol] = pieceColorIndex;
+                // Track positions of current piece
+                piecePositions.add(`${boardRow}-${boardCol}`);
+              }
+            }
+          }
+        }
+      }
+
+      return {
+        renderBoard: newBoard,
+        currentPiecePositions: piecePositions,
+        ghostPiecePositions: ghostPositions,
+      };
+    }, [board, currentPiece, isCurrentPlayer, calculateGhostPiece]);
 
   return (
     <BoardContainer>
@@ -215,6 +311,8 @@ const GameBoard: React.FC<GameBoardProps> = ({
           row.map((cell, colIndex) => {
             const cellKey = `${rowIndex}-${colIndex}`;
             const isCurrentPiece = currentPiecePositions.has(cellKey);
+            const isGhostPiece =
+              !isCurrentPiece && ghostPiecePositions.has(cellKey);
             const isClearing = clearingRows.has(rowIndex);
 
             // Calculate animation delay based on distance from drop point
@@ -227,6 +325,7 @@ const GameBoard: React.FC<GameBoardProps> = ({
                 cellValue={cell}
                 isCurrentPlayer={isCurrentPlayer}
                 isCurrentPiece={isCurrentPiece}
+                isGhostPiece={isGhostPiece}
                 isClearing={isClearing}
                 clearingDelay={clearingDelay}
                 initial={{ scale: 0 }}

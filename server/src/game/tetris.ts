@@ -252,6 +252,25 @@ export function calculateScore(linesCleared: number, level: number): number {
   return baseScores[linesCleared] * (level + 1);
 }
 
+export function calculateGhostPiecePosition(
+  board: number[][],
+  piece: TetrisPiece
+): TetrisPiece {
+  if (!piece) return piece;
+  
+  const ghostPiece = {
+    ...piece,
+    y: piece.y
+  };
+  
+  // Drop the ghost piece to the lowest valid position
+  while (isValidPosition(board, ghostPiece, undefined, ghostPiece.y + 1)) {
+    ghostPiece.y++;
+  }
+  
+  return ghostPiece;
+}
+
 export function movePiece(
   player: Player,
   direction: "left" | "right" | "down"
