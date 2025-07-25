@@ -443,13 +443,14 @@ function startGameLoop(roomId: string) {
       const alivePlayers = Array.from(room.players.values()).filter(
         (p) => !p.isGameOver
       );
-      
+
       // For single player: end when player is game over
       // For multiplayer: end when 1 or fewer players remain
-      const shouldEndGame = room.players.size === 1 
-        ? alivePlayers.length === 0  // Single player: end when they're game over
-        : alivePlayers.length <= 1;  // Multiplayer: end when 1 or fewer remain
-        
+      const shouldEndGame =
+        room.players.size === 1
+          ? alivePlayers.length === 0 // Single player: end when they're game over
+          : alivePlayers.length <= 1; // Multiplayer: end when 1 or fewer remain
+
       if (shouldEndGame) {
         const winner = alivePlayers[0];
         roomManager.endGame(roomId, winner?.id);
@@ -458,7 +459,9 @@ function startGameLoop(roomId: string) {
         gameLoops.delete(roomId);
 
         io.to(roomId).emit("game_ended", winner?.id);
-        console.log(`🏁 Game loop ended for room ${room.code} - alivePlayers: ${alivePlayers.length}, totalPlayers: ${room.players.size}`);
+        console.log(
+          `🏁 Game loop ended for room ${room.code} - alivePlayers: ${alivePlayers.length}, totalPlayers: ${room.players.size}`
+        );
       }
     } else {
       console.log(`⏸️ No game state changes for room ${room.code}`);

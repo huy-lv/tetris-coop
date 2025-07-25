@@ -8,6 +8,7 @@ import GameBoard from "./GameBoard";
 import PlayerList from "./PlayerList";
 import GameStats from "./GameStats";
 import NextPiece from "./NextPiece";
+import Controls from "./Controls";
 
 const GameContainer = styled.div`
   display: flex;
@@ -169,20 +170,20 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
         playerId: currentPlayer.id,
       };
 
-      switch (event.key) {
-        case "ArrowLeft":
+      switch (event.key.toLowerCase()) {
+        case "a":
           action.type = "MOVE_LEFT";
           break;
-        case "ArrowRight":
+        case "d":
           action.type = "MOVE_RIGHT";
           break;
-        case "ArrowDown":
+        case "s":
           action.type = "MOVE_DOWN";
           break;
-        case "ArrowUp":
+        case "n":
           action.type = "ROTATE";
           break;
-        case " ":
+        case "j":
           event.preventDefault();
           action.type = "HARD_DROP";
           break;
@@ -349,6 +350,7 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
                     level={player.level}
                     lines={player.lines}
                   />
+                  <Controls />
                 </div>
               </div>
             </PlayerGameArea>
