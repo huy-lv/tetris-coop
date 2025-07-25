@@ -647,20 +647,23 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
                   />
                 </div>
 
-                <SideComponents>
-                  <HoldPiece
-                    piece={player.holdPiece}
-                    canHold={player.canHold}
-                  />
-                  <NextPiece piece={player.nextPiece} />
-                  <GameStats
-                    score={player.score}
-                    level={player.level}
-                    lines={player.lines}
-                    dropInterval={room?.dropInterval}
-                  />
-                  <Controls />
-                </SideComponents>
+                {/* Only show side components for the current player */}
+                {player.id === currentPlayer.id && (
+                  <SideComponents>
+                    <HoldPiece
+                      piece={player.holdPiece}
+                      canHold={player.canHold}
+                    />
+                    <NextPiece piece={player.nextPiece} />
+                    <GameStats
+                      score={player.score}
+                      level={player.level}
+                      lines={player.lines}
+                      dropInterval={room?.dropInterval}
+                    />
+                    <Controls />
+                  </SideComponents>
+                )}
               </GameLayoutContainer>
             </PlayerGameArea>
           ))}
