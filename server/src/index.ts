@@ -320,14 +320,32 @@ io.on("connection", (socket) => {
           actionResult = movePiece(player, "down");
           if (!actionResult) {
             // Piece couldn't move down, lock it
-            lockPiece(player);
+            const lockResult = lockPiece(player, socket.data.roomId, io, () => {
+              // Send updated game state after animation completes
+              const room = roomManager.getRoom(socket.data.roomId);
+              if (room) {
+                io.to(socket.data.roomId).emit("game_state_update", {
+                  players: Array.from(room.players.values()),
+                });
+              }
+            });
+            actionResult = !lockResult.gameOver;
           }
           break;
         case "ROTATE":
           actionResult = rotatePiece(player);
           break;
         case "HARD_DROP":
-          actionResult = hardDrop(player);
+          const dropResult = hardDrop(player, socket.data.roomId, io, () => {
+            // Send updated game state after animation completes
+            const room = roomManager.getRoom(socket.data.roomId);
+            if (room) {
+              io.to(socket.data.roomId).emit("game_state_update", {
+                players: Array.from(room.players.values()),
+              });
+            }
+          });
+          actionResult = !dropResult.gameOver;
           break;
       }
 
@@ -418,7 +436,15 @@ function startGameLoop(roomId: string) {
         if (!moved) {
           // Piece couldn't move down, lock it
           console.log(`🔒 Locking piece for ${player.name}`);
-          lockPiece(player);
+          const lockResult = lockPiece(player, roomId, io, () => {
+            // Send updated game state after animation completes
+            const room = roomManager.getRoom(roomId);
+            if (room) {
+              io.to(roomId).emit("game_state_update", {
+                players: Array.from(room.players.values()),
+              });
+            }
+          });
           gameStateChanged = true;
         } else {
           gameStateChanged = true; // Also mark as changed when piece moves

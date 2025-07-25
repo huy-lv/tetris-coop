@@ -1,8 +1,9 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import styled from "styled-components";
 import { motion } from "framer-motion";
 import type { TetrisPiece } from "../types";
 import { BOARD_COLORS } from "../types";
+import { useSocket } from "../hooks/useSocket";
 
 const BoardContainer = styled.div`
   border: 3px solid #ffd700;
@@ -25,6 +26,8 @@ const Cell = styled(motion.div)<{
   cellValue: number;
   isCurrentPlayer: boolean;
   isCurrentPiece?: boolean;
+  isClearing?: boolean;
+  clearingDelay?: number;
 }>`
   width: 25px;
   height: 25px;
@@ -47,6 +50,13 @@ const Cell = styled(motion.div)<{
     animation: pulse 1.5s ease-in-out infinite alternate;
   `}
   
+  ${(props) =>
+    props.isClearing &&
+    `
+    animation: clearExpand 0.6s ease-out forwards;
+    animation-delay: ${props.clearingDelay || 0}ms;
+  `}
+  
   @keyframes pulse {
     from {
       box-shadow: 0 0 15px rgba(255, 255, 255, 0.6),
@@ -57,19 +67,91 @@ const Cell = styled(motion.div)<{
         inset 0 0 15px rgba(255, 255, 255, 0.3);
     }
   }
+  
+  @keyframes clearExpand {
+    0% {
+      background-color: ${(props) => BOARD_COLORS[props.cellValue]};
+      transform: scale(1);
+      box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.1);
+    }
+    20% {
+      background-color: #ff6b6b;
+      transform: scale(1.2);
+      box-shadow: 0 0 20px rgba(255, 107, 107, 0.8);
+    }
+    40% {
+      background-color: #ffd93d;
+      transform: scale(1.3);
+      box-shadow: 0 0 25px rgba(255, 217, 61, 1);
+    }
+    70% {
+      background-color: #ffffff;
+      transform: scale(1.4);
+      box-shadow: 0 0 35px rgba(255, 255, 255, 1);
+    }
+    100% {
+      background-color: transparent;
+      transform: scale(0);
+      box-shadow: 0 0 50px rgba(255, 255, 255, 0);
+      opacity: 0;
+    }
+  }
 `;
 
 interface GameBoardProps {
   board: number[][];
   currentPiece?: TetrisPiece;
   isCurrentPlayer: boolean;
+  playerId: string;
 }
 
 const GameBoard: React.FC<GameBoardProps> = ({
   board,
   currentPiece,
   isCurrentPlayer,
+  playerId,
 }) => {
+  const { socket } = useSocket();
+  const [clearingRows, setClearingRows] = useState<Set<number>>(new Set());
+  const [dropPosition, setDropPosition] = useState<number>(5);
+
+  // Listen for line clear events
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleLinesClearing = (data: {
+      playerId: string;
+      clearedRows: number[];
+      dropX: number;
+    }) => {
+      if (data.playerId === playerId) {
+        // Start the clearing animation
+        setClearingRows(new Set(data.clearedRows));
+        setDropPosition(data.dropX);
+      }
+    };
+
+    const handleLinesCleared = (data: {
+      playerId: string;
+      clearedRows: number[];
+      dropX: number;
+    }) => {
+      if (data.playerId === playerId) {
+        // Clear the animation after board has been updated
+        setTimeout(() => {
+          setClearingRows(new Set());
+        }, 50); // Small delay to ensure board state is updated
+      }
+    };
+
+    socket.on("lines_clearing", handleLinesClearing);
+    socket.on("lines_cleared", handleLinesCleared);
+
+    return () => {
+      socket.off("lines_clearing", handleLinesClearing);
+      socket.off("lines_cleared", handleLinesCleared);
+    };
+  }, [socket, playerId]);
   // Create a copy of the board to render with the current piece
   const { renderBoard, currentPiecePositions } = React.useMemo(() => {
     const newBoard = board.map((row) => [...row]);
@@ -133,6 +215,11 @@ const GameBoard: React.FC<GameBoardProps> = ({
           row.map((cell, colIndex) => {
             const cellKey = `${rowIndex}-${colIndex}`;
             const isCurrentPiece = currentPiecePositions.has(cellKey);
+            const isClearing = clearingRows.has(rowIndex);
+            
+            // Calculate animation delay based on distance from drop point
+            const distanceFromDrop = Math.abs(colIndex - dropPosition);
+            const clearingDelay = isClearing ? distanceFromDrop * 20 : 0; // 20ms per column
 
             return (
               <Cell
@@ -140,6 +227,8 @@ const GameBoard: React.FC<GameBoardProps> = ({
                 cellValue={cell}
                 isCurrentPlayer={isCurrentPlayer}
                 isCurrentPiece={isCurrentPiece}
+                isClearing={isClearing}
+                clearingDelay={clearingDelay}
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 transition={{ delay: (rowIndex + colIndex) * 0.01 }}

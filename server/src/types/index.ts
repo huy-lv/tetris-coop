@@ -58,6 +58,8 @@ export interface ServerToClientEvents {
   player_ready: (playerId: string, isReady: boolean) => void;
   game_started: () => void;
   game_state_update: (gameState: { players: Player[] }) => void;
+  lines_clearing: (data: { playerId: string; clearedRows: number[]; dropX: number }) => void;
+  lines_cleared: (data: { playerId: string; clearedRows: number[]; dropX: number }) => void;
   player_lost: (playerId: string) => void;
   game_ended: (winnerId?: string) => void;
   error: (message: string) => void;

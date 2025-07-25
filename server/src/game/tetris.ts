@@ -205,6 +205,18 @@ export function clearLines(board: number[][]): { newBoard: number[][]; linesClea
   return { newBoard, linesCleared };
 }
 
+export function detectClearableLines(board: number[][]): { clearedRowIndices: number[] } {
+  const clearedRowIndices: number[] = [];
+  
+  for (let row = 0; row < BOARD_HEIGHT; row++) {
+    if (board[row].every(cell => cell !== 0)) {
+      clearedRowIndices.push(row);
+    }
+  }
+  
+  return { clearedRowIndices };
+}
+
 export function calculateScore(linesCleared: number, level: number): number {
   const baseScores = [0, 40, 100, 300, 1200];
   return baseScores[linesCleared] * (level + 1);
@@ -251,8 +263,17 @@ export function rotatePiece(player: Player): boolean {
   return false;
 }
 
-export function hardDrop(player: Player): boolean {
-  if (!player.currentPiece) return false;
+export function hardDrop(
+  player: Player,
+  roomId: string,
+  io: any,
+  onAnimationComplete?: () => void
+): {
+  gameOver: boolean;
+  clearedRows?: number[];
+  dropX?: number;
+} {
+  if (!player.currentPiece) return { gameOver: false };
   
   let newY = player.currentPiece.y;
   
@@ -261,35 +282,84 @@ export function hardDrop(player: Player): boolean {
   }
   
   player.currentPiece.y = newY;
-  return lockPiece(player);
+  return lockPiece(player, roomId, io, onAnimationComplete);
 }
 
-export function lockPiece(player: Player): boolean {
-  if (!player.currentPiece) return false;
-  
+export function lockPiece(
+  player: Player,
+  roomId: string,
+  io: any,
+  onAnimationComplete?: () => void
+): {
+  gameOver: boolean;
+  clearedRows?: number[];
+  dropX?: number;
+} {
+  if (!player.currentPiece) return { gameOver: false };
+
+  const dropX = player.currentPiece.x;
+
   // Place the piece on the board
   player.gameBoard = placePiece(player.gameBoard, player.currentPiece);
+
+  // First detect which lines need to be cleared
+  const { clearedRowIndices } = detectClearableLines(player.gameBoard);
   
-  // Clear lines and update score
-  const { newBoard, linesCleared } = clearLines(player.gameBoard);
-  player.gameBoard = newBoard;
-  player.lines += linesCleared;
-  player.score += calculateScore(linesCleared, player.level);
-  
-  // Update level (every 10 lines)
-  player.level = Math.floor(player.lines / 10);
-  
+  if (clearedRowIndices.length > 0) {
+    // Emit animation start event
+    io.to(roomId).emit("lines_clearing", {
+      playerId: player.id,
+      clearedRows: clearedRowIndices,
+      dropX: dropX
+    });
+    
+    // Delay the actual clearing to allow animation to play
+    setTimeout(() => {
+      // Now actually clear the lines
+      const { newBoard, linesCleared } = clearLines(player.gameBoard);
+      player.gameBoard = newBoard;
+      player.lines += linesCleared;
+      player.score += calculateScore(linesCleared, player.level);
+      
+      // Update level (every 10 lines)
+      player.level = Math.floor(player.lines / 10);
+      
+      // Emit completion event
+      io.to(roomId).emit("lines_cleared", {
+        playerId: player.id,
+        clearedRows: clearedRowIndices,
+        dropX: dropX
+      });
+      
+      // Call the callback to trigger game state update
+      if (onAnimationComplete) {
+        onAnimationComplete();
+      }
+    }, 650); // Wait for animation to complete (600ms + 50ms buffer)
+  }
+
   // Set next piece as current and generate new next piece
   player.currentPiece = player.nextPiece;
   player.nextPiece = generateRandomPiece();
-  
+
   // Check if game is over
-  if (player.currentPiece && !isValidPosition(player.gameBoard, player.currentPiece)) {
+  if (
+    player.currentPiece &&
+    !isValidPosition(player.gameBoard, player.currentPiece)
+  ) {
     player.isGameOver = true;
-    return false;
+    return {
+      gameOver: true,
+      clearedRows: clearedRowIndices.length > 0 ? clearedRowIndices : undefined,
+      dropX: clearedRowIndices.length > 0 ? dropX : undefined,
+    };
   }
-  
-  return true;
+
+  return {
+    gameOver: false,
+    clearedRows: clearedRowIndices.length > 0 ? clearedRowIndices : undefined,
+    dropX: clearedRowIndices.length > 0 ? dropX : undefined,
+  };
 }
 
 export function initializePlayer(id: string, name: string): Player {

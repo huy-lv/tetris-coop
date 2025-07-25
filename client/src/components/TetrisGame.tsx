@@ -456,6 +456,7 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
                   board={player.gameBoard}
                   currentPiece={player.currentPiece}
                   isCurrentPlayer={player.id === currentPlayer.id}
+                  playerId={player.id}
                 />
 
                 <div
