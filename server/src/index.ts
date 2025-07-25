@@ -268,14 +268,15 @@ io.on("connection", (socket) => {
         return;
       }
 
-      // Check if player is allowed to start (room creator or all players ready)
+      // Check if player is allowed to start (room creator for new games or finished games)
       const playerIds = Array.from(room.players.keys());
       const isCreator = playerIds[0] === socket.data.playerId; // First player is creator
       const allReady = room.gameState === GameState.READY;
+      const gameFinished = room.gameState === GameState.FINISHED;
 
-      if (room.players.size >= 1 && (allReady || isCreator)) {
+      if (room.players.size >= 1 && (allReady || isCreator || (gameFinished && isCreator))) {
         console.log(
-          `🎮 Manual game start requested by ${socket.data.playerId} in room ${room.code}`
+          `🎮 Manual game start/restart requested by ${socket.data.playerId} in room ${room.code}`
         );
 
         if (roomManager.startGame(socket.data.roomId)) {

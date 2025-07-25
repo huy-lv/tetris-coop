@@ -553,6 +553,60 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
           </div>
         )}
 
+        {/* Show restart game button when game is finished */}
+        {gameState.gameState === GameState.FINISHED && (
+          <>
+            <div
+              style={{
+                padding: "12px",
+                background: "rgba(255, 255, 255, 0.1)",
+                borderRadius: "8px",
+                marginBottom: "15px",
+                textAlign: "center",
+                fontSize: "16px",
+                color: "#ffd700",
+                fontWeight: "bold",
+              }}
+            >
+              🎯 Game Over!
+            </div>
+
+            {/* Show Start New Game button for room creator */}
+            {isRoomCreator && (
+              <ReadyButton
+                className="ready"
+                onClick={handleStartGame}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                style={{
+                  background: "linear-gradient(45deg, #ffd700, #ffed4e)",
+                  color: "#1a1a2e",
+                  marginBottom: "10px",
+                }}
+              >
+                🔄 Start New Game
+              </ReadyButton>
+            )}
+
+            {/* Show waiting message for non-creators */}
+            {!isRoomCreator && (
+              <div
+                style={{
+                  padding: "12px",
+                  background: "rgba(255, 255, 255, 0.1)",
+                  borderRadius: "8px",
+                  marginBottom: "15px",
+                  textAlign: "center",
+                  fontSize: "14px",
+                  color: "#ffd700",
+                }}
+              >
+                ⏳ Waiting for room creator to start a new game
+              </div>
+            )}
+          </>
+        )}
+
         <PlayerList
           players={gameState.players}
           currentPlayerId={currentPlayer.id}

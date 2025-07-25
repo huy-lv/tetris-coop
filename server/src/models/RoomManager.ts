@@ -152,14 +152,14 @@ export class RoomManager {
     // Allow starting with at least 1 player for testing
     if (room.players.size < 1) return false;
 
-    // Don't allow starting if game is already active
+    // Allow restarting finished games, but don't allow starting if game is already active
     if (room.gameState === GameState.PLAYING) return false;
 
     room.gameState = GameState.PLAYING;
     room.isGameActive = true;
 
     console.log(
-      `🎮 Starting game in room ${room.code} with ${room.players.size} players`
+      `🎮 Starting/Restarting game in room ${room.code} with ${room.players.size} players`
     );
 
     // Reset all players' game state
