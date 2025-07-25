@@ -1,20 +1,20 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import styled from 'styled-components';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useSocket } from '../hooks/useSocket';
-import type { Player, Room, GameAction } from '../types';
-import { GameState } from '../types';
-import GameBoard from './GameBoard';
-import PlayerList from './PlayerList';
-import GameStats from './GameStats';
-import NextPiece from './NextPiece';
+import React, { useState, useEffect, useCallback } from "react";
+import styled from "styled-components";
+import { motion, AnimatePresence } from "framer-motion";
+import { useSocket } from "../hooks/useSocket";
+import type { Player, Room, GameAction } from "../types";
+import { GameState } from "../types";
+import GameBoard from "./GameBoard";
+import PlayerList from "./PlayerList";
+import GameStats from "./GameStats";
+import NextPiece from "./NextPiece";
 
 const GameContainer = styled.div`
   display: flex;
   min-height: 100vh;
   background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
   color: white;
-  font-family: 'Arial', sans-serif;
+  font-family: "Arial", sans-serif;
 `;
 
 const MainGameArea = styled.div`
@@ -79,17 +79,17 @@ const ReadyButton = styled(motion.button)`
   border-radius: 8px;
   cursor: pointer;
   margin-bottom: 20px;
-  
+
   &.ready {
     background: #4caf50;
     color: white;
   }
-  
+
   &.not-ready {
     background: #f44336;
     color: white;
   }
-  
+
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -122,65 +122,78 @@ interface TetrisGameContainerProps {
   roomId: string;
 }
 
-const TetrisGame: React.FC<TetrisGameProps> = ({ room, currentPlayer, onLeaveRoom }) => {
+const TetrisGame: React.FC<TetrisGameProps> = ({
+  room,
+  currentPlayer,
+  onLeaveRoom,
+}) => {
   const { socket } = useSocket();
   const [gameState, setGameState] = useState(room);
   const [showMessage, setShowMessage] = useState<string | null>(null);
   const [isReady, setIsReady] = useState(currentPlayer.isReady);
-  
+
   // Update gameState when room prop changes
   useEffect(() => {
-    console.log('TetrisGame: Room prop changed', {
+    console.log("TetrisGame: Room prop changed", {
       roomCode: room.code,
       playerCount: room.players.length,
-      players: room.players.map(p => ({ name: p.name, id: p.id }))
+      players: room.players.map((p) => ({ name: p.name, id: p.id })),
     });
     setGameState(room);
   }, [room]);
-  
+
   // Check if current player is the room creator (first player)
-  const isRoomCreator = gameState.players.length > 0 && gameState.players[0].id === currentPlayer.id;
-  
-  console.log('TetrisGame: Render state', {
+  const isRoomCreator =
+    gameState.players.length > 0 &&
+    gameState.players[0].id === currentPlayer.id;
+
+  console.log("TetrisGame: Render state", {
     gameStatePlayerCount: gameState.players.length,
     roomPropPlayerCount: room.players.length,
     currentPlayerId: currentPlayer.id,
-    isRoomCreator
+    isRoomCreator,
   });
 
-  const handleKeyPress = useCallback((event: KeyboardEvent) => {
-    if (!socket || gameState.gameState !== GameState.PLAYING || currentPlayer.isGameOver) {
-      return;
-    }
-
-    const action: GameAction = {
-      type: 'MOVE_LEFT',
-      playerId: currentPlayer.id
-    };
-
-    switch (event.key) {
-      case 'ArrowLeft':
-        action.type = 'MOVE_LEFT';
-        break;
-      case 'ArrowRight':
-        action.type = 'MOVE_RIGHT';
-        break;
-      case 'ArrowDown':
-        action.type = 'MOVE_DOWN';
-        break;
-      case 'ArrowUp':
-        action.type = 'ROTATE';
-        break;
-      case ' ':
-        event.preventDefault();
-        action.type = 'HARD_DROP';
-        break;
-      default:
+  const handleKeyPress = useCallback(
+    (event: KeyboardEvent) => {
+      if (
+        !socket ||
+        gameState.gameState !== GameState.PLAYING ||
+        currentPlayer.isGameOver
+      ) {
         return;
-    }
+      }
 
-    socket.emit('game_action', action);
-  }, [socket, gameState.gameState, currentPlayer.id, currentPlayer.isGameOver]);
+      const action: GameAction = {
+        type: "MOVE_LEFT",
+        playerId: currentPlayer.id,
+      };
+
+      switch (event.key) {
+        case "ArrowLeft":
+          action.type = "MOVE_LEFT";
+          break;
+        case "ArrowRight":
+          action.type = "MOVE_RIGHT";
+          break;
+        case "ArrowDown":
+          action.type = "MOVE_DOWN";
+          break;
+        case "ArrowUp":
+          action.type = "ROTATE";
+          break;
+        case " ":
+          event.preventDefault();
+          action.type = "HARD_DROP";
+          break;
+        default:
+          return;
+      }
+
+      socket.emit("game_action", action);
+    },
+    [socket, gameState.gameState, currentPlayer.id, currentPlayer.isGameOver]
+  );
 
   useEffect(() => {
     if (!socket) return;
@@ -190,36 +203,50 @@ const TetrisGame: React.FC<TetrisGameProps> = ({ room, currentPlayer, onLeaveRoo
     };
 
     const handleRoomLeft = (playerId: string) => {
-      setGameState(prev => ({
+      setGameState((prev) => ({
         ...prev,
-        players: prev.players.filter(p => p.id !== playerId)
+        players: prev.players.filter((p) => p.id !== playerId),
       }));
     };
 
     const handlePlayerReady = (playerId: string, ready: boolean) => {
-      setGameState(prev => ({
+      setGameState((prev) => ({
         ...prev,
-        players: prev.players.map(p => 
+        players: prev.players.map((p) =>
           p.id === playerId ? { ...p, isReady: ready } : p
-        )
+        ),
       }));
     };
 
     const handleGameStarted = () => {
-      setShowMessage('Game Starting!');
+      setShowMessage("Game Starting!");
       setTimeout(() => setShowMessage(null), 2000);
     };
 
     const handleGameStateUpdate = (update: { players: Player[] }) => {
-      setGameState(prev => ({
+      console.log("🎮 Game state update received:", {
+        playerCount: update.players.length,
+        players: update.players.map((p) => ({
+          name: p.name,
+          currentPiece: p.currentPiece
+            ? {
+                type: p.currentPiece.type,
+                x: p.currentPiece.x,
+                y: p.currentPiece.y,
+              }
+            : null,
+          isGameOver: p.isGameOver,
+        })),
+      });
+      setGameState((prev) => ({
         ...prev,
         players: update.players,
-        gameState: GameState.PLAYING
+        gameState: GameState.PLAYING,
       }));
     };
 
     const handlePlayerLost = (playerId: string) => {
-      const player = gameState.players.find(p => p.id === playerId);
+      const player = gameState.players.find((p) => p.id === playerId);
       if (player) {
         setShowMessage(`${player.name} is out!`);
         setTimeout(() => setShowMessage(null), 3000);
@@ -227,59 +254,61 @@ const TetrisGame: React.FC<TetrisGameProps> = ({ room, currentPlayer, onLeaveRoo
     };
 
     const handleGameEnded = (winnerId?: string) => {
-      const winner = winnerId ? gameState.players.find(p => p.id === winnerId) : null;
-      setShowMessage(winner ? `${winner.name} Wins!` : 'Game Over!');
-      setGameState(prev => ({ ...prev, gameState: GameState.FINISHED }));
+      const winner = winnerId
+        ? gameState.players.find((p) => p.id === winnerId)
+        : null;
+      setShowMessage(winner ? `${winner.name} Wins!` : "Game Over!");
+      setGameState((prev) => ({ ...prev, gameState: GameState.FINISHED }));
       setTimeout(() => setShowMessage(null), 5000);
     };
 
-    socket.on('room_joined', handleRoomJoined);
-    socket.on('room_left', handleRoomLeft);
-    socket.on('player_ready', handlePlayerReady);
-    socket.on('game_started', handleGameStarted);
-    socket.on('game_state_update', handleGameStateUpdate);
-    socket.on('player_lost', handlePlayerLost);
-    socket.on('game_ended', handleGameEnded);
+    socket.on("room_joined", handleRoomJoined);
+    socket.on("room_left", handleRoomLeft);
+    socket.on("player_ready", handlePlayerReady);
+    socket.on("game_started", handleGameStarted);
+    socket.on("game_state_update", handleGameStateUpdate);
+    socket.on("player_lost", handlePlayerLost);
+    socket.on("game_ended", handleGameEnded);
 
     return () => {
-      socket.off('room_joined', handleRoomJoined);
-      socket.off('room_left', handleRoomLeft);
-      socket.off('player_ready', handlePlayerReady);
-      socket.off('game_started', handleGameStarted);
-      socket.off('game_state_update', handleGameStateUpdate);
-      socket.off('player_lost', handlePlayerLost);
-      socket.off('game_ended', handleGameEnded);
+      socket.off("room_joined", handleRoomJoined);
+      socket.off("room_left", handleRoomLeft);
+      socket.off("player_ready", handlePlayerReady);
+      socket.off("game_started", handleGameStarted);
+      socket.off("game_state_update", handleGameStateUpdate);
+      socket.off("player_lost", handlePlayerLost);
+      socket.off("game_ended", handleGameEnded);
     };
   }, [socket, gameState.players]);
 
   useEffect(() => {
-    window.addEventListener('keydown', handleKeyPress);
-    return () => window.removeEventListener('keydown', handleKeyPress);
+    window.addEventListener("keydown", handleKeyPress);
+    return () => window.removeEventListener("keydown", handleKeyPress);
   }, [handleKeyPress]);
 
   const handleReadyToggle = () => {
     if (!socket) return;
-    
+
     const newReadyState = !isReady;
     setIsReady(newReadyState);
-    socket.emit('player_ready', newReadyState);
+    socket.emit("player_ready", newReadyState);
   };
 
   const handleStartGame = () => {
     if (!socket) return;
-    console.log('TetrisGame: Manual start game requested', {
+    console.log("TetrisGame: Manual start game requested", {
       roomCode: gameState.code,
       playerCount: gameState.players.length,
       gameState: gameState.gameState,
       isRoomCreator,
-      currentPlayerId: currentPlayer.id
+      currentPlayerId: currentPlayer.id,
     });
-    socket.emit('start_game');
+    socket.emit("start_game");
   };
 
   const handleLeaveRoom = () => {
     if (socket) {
-      socket.emit('leave_room');
+      socket.emit("leave_room");
     }
     onLeaveRoom();
   };
@@ -296,20 +325,26 @@ const TetrisGame: React.FC<TetrisGameProps> = ({ room, currentPlayer, onLeaveRoo
             <PlayerGameArea key={player.id}>
               <PlayerName>
                 {player.name}
-                {player.id === currentPlayer.id && ' (You)'}
-                {player.isGameOver && ' - OUT'}
+                {player.id === currentPlayer.id && " (You)"}
+                {player.isGameOver && " - OUT"}
               </PlayerName>
-              
-              <div style={{ display: 'flex', gap: '15px' }}>
-                <GameBoard 
+
+              <div style={{ display: "flex", gap: "15px" }}>
+                <GameBoard
                   board={player.gameBoard}
                   currentPiece={player.currentPiece}
                   isCurrentPlayer={player.id === currentPlayer.id}
                 />
-                
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "15px",
+                  }}
+                >
                   <NextPiece piece={player.nextPiece} />
-                  <GameStats 
+                  <GameStats
                     score={player.score}
                     level={player.level}
                     lines={player.lines}
@@ -324,20 +359,22 @@ const TetrisGame: React.FC<TetrisGameProps> = ({ room, currentPlayer, onLeaveRoo
       <Sidebar>
         <RoomInfo>
           <RoomCode>{gameState.code}</RoomCode>
-          <div>Players: {gameState.players.length}/{gameState.maxPlayers}</div>
+          <div>
+            Players: {gameState.players.length}/{gameState.maxPlayers}
+          </div>
         </RoomInfo>
 
         {gameState.gameState === GameState.WAITING && (
           <>
             <ReadyButton
-              className={isReady ? 'ready' : 'not-ready'}
+              className={isReady ? "ready" : "not-ready"}
               onClick={handleReadyToggle}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
             >
-              {isReady ? 'Ready!' : 'Not Ready'}
+              {isReady ? "Ready!" : "Not Ready"}
             </ReadyButton>
-            
+
             {/* Show Start Game button for room creator when there are enough players */}
             {isRoomCreator && gameState.players.length >= 1 && (
               <ReadyButton
@@ -345,66 +382,73 @@ const TetrisGame: React.FC<TetrisGameProps> = ({ room, currentPlayer, onLeaveRoo
                 onClick={handleStartGame}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                style={{ 
-                  background: 'linear-gradient(45deg, #ffd700, #ffed4e)', 
-                  color: '#1a1a2e',
-                  marginBottom: '10px'
+                style={{
+                  background: "linear-gradient(45deg, #ffd700, #ffed4e)",
+                  color: "#1a1a2e",
+                  marginBottom: "10px",
                 }}
               >
                 🚀 Start Game
               </ReadyButton>
             )}
-            
+
             {/* Show waiting message for non-creators */}
             {!isRoomCreator && gameState.players.length >= 1 && (
-              <div style={{
-                padding: '12px',
-                background: 'rgba(255, 255, 255, 0.1)',
-                borderRadius: '8px',
-                marginBottom: '15px',
-                textAlign: 'center',
-                fontSize: '14px',
-                color: '#ffd700'
-              }}>
+              <div
+                style={{
+                  padding: "12px",
+                  background: "rgba(255, 255, 255, 0.1)",
+                  borderRadius: "8px",
+                  marginBottom: "15px",
+                  textAlign: "center",
+                  fontSize: "14px",
+                  color: "#ffd700",
+                }}
+              >
                 ⏳ Waiting for room creator to start the game
               </div>
             )}
           </>
         )}
-        
+
         {/* Show ready state message */}
         {gameState.gameState === GameState.READY && (
-          <div style={{
-            padding: '12px',
-            background: 'rgba(76, 175, 80, 0.2)',
-            borderRadius: '8px',
-            marginBottom: '15px',
-            textAlign: 'center',
-            fontSize: '14px',
-            color: '#4caf50',
-            border: '1px solid #4caf50'
-          }}>
+          <div
+            style={{
+              padding: "12px",
+              background: "rgba(76, 175, 80, 0.2)",
+              borderRadius: "8px",
+              marginBottom: "15px",
+              textAlign: "center",
+              fontSize: "14px",
+              color: "#4caf50",
+              border: "1px solid #4caf50",
+            }}
+          >
             🎮 Game starting soon...
           </div>
         )}
 
-        <PlayerList players={gameState.players} currentPlayerId={currentPlayer.id} />
+        <PlayerList
+          players={gameState.players}
+          currentPlayerId={currentPlayer.id}
+        />
 
         <motion.button
           onClick={handleLeaveRoom}
           style={{
-            width: '100%',
-            padding: '12px',
-            fontSize: '16px',
-            fontWeight: 'bold',
-            border: 'none',
-            borderRadius: '8px',
-            background: '#666',
-            color: 'white',
-            cursor: 'pointer',
-            marginTop: '20px'
+            width: "100%",
+            padding: "12px",
+            fontSize: "16px",
+            fontWeight: "bold",
+            border: "none",
+            borderRadius: "8px",
+            background: "#666",
+            color: "white",
+            cursor: "pointer",
+            marginTop: "20px",
           }}
-          whileHover={{ scale: 1.05, background: '#777' }}
+          whileHover={{ scale: 1.05, background: "#777" }}
           whileTap={{ scale: 0.95 }}
         >
           Leave Room
@@ -428,7 +472,9 @@ const TetrisGame: React.FC<TetrisGameProps> = ({ room, currentPlayer, onLeaveRoo
 };
 
 // Container component that handles room joining
-const TetrisGameContainer: React.FC<TetrisGameContainerProps> = ({ roomId }) => {
+const TetrisGameContainer: React.FC<TetrisGameContainerProps> = ({
+  roomId,
+}) => {
   const { socket } = useSocket();
   const [room, setRoom] = useState<Room | null>(null);
   const [currentPlayer, setCurrentPlayer] = useState<Player | null>(null);
@@ -439,41 +485,52 @@ const TetrisGameContainer: React.FC<TetrisGameContainerProps> = ({ roomId }) => 
     if (!socket) return;
 
     // Get player name from localStorage
-    const playerName = localStorage.getItem('playerName') || localStorage.getItem('tetris_player_name') || 'Anonymous';
-    
-    console.log('TetrisGameContainer: Joining room', { roomId, playerName });
-    
+    const playerName =
+      localStorage.getItem("playerName") ||
+      localStorage.getItem("tetris_player_name") ||
+      "Anonymous";
+
+    console.log("TetrisGameContainer: Joining room", { roomId, playerName });
+
     // Join the room using callback
-    console.log('TetrisGameContainer: Attempting to join room', { roomId, playerName });
-    socket.emit('join_room', roomId, playerName, (response) => {
-      console.log('TetrisGameContainer: Join room callback response', response);
+    console.log("TetrisGameContainer: Attempting to join room", {
+      roomId,
+      playerName,
+    });
+    socket.emit("join_room", roomId, playerName, (response) => {
+      console.log("TetrisGameContainer: Join room callback response", response);
       if (response.success) {
-        console.log('TetrisGameContainer: Successfully joined room via callback');
+        console.log(
+          "TetrisGameContainer: Successfully joined room via callback"
+        );
       } else {
-        console.error('TetrisGameContainer: Failed to join room:', response.error);
-        setError(response.error || 'Failed to join room');
+        console.error(
+          "TetrisGameContainer: Failed to join room:",
+          response.error
+        );
+        setError(response.error || "Failed to join room");
         setIsConnected(false);
       }
     });
 
     const handleRoomJoined = (joinedRoom: Room) => {
-      console.log('TetrisGameContainer: Room joined event received', { 
-        roomCode: joinedRoom.code, 
-        playerCount: joinedRoom.players.length
+      console.log("TetrisGameContainer: Room joined event received", {
+        roomCode: joinedRoom.code,
+        playerCount: joinedRoom.players.length,
       });
       setRoom(joinedRoom);
-      
+
       // Find current player in the room
       const currentPlayerInRoom = joinedRoom.players.find(
-        player => player.name === playerName // Match by name since we don't have player ID yet
+        (player) => player.name === playerName // Match by name since we don't have player ID yet
       );
-      
+
       if (currentPlayerInRoom) {
         setCurrentPlayer(currentPlayerInRoom);
         setIsConnected(true);
         setError(null);
       } else {
-        setError('Player not found in room');
+        setError("Player not found in room");
       }
     };
 
@@ -483,54 +540,59 @@ const TetrisGameContainer: React.FC<TetrisGameContainerProps> = ({ roomId }) => 
       setIsConnected(false);
     };
 
-    socket.on('room_joined', handleRoomJoined);
-    socket.on('room_left', handleRoomLeft);
+    socket.on("room_joined", handleRoomJoined);
+    socket.on("room_left", handleRoomLeft);
 
     return () => {
-      socket.off('room_joined', handleRoomJoined);
-      socket.off('room_left', handleRoomLeft);
+      socket.off("room_joined", handleRoomJoined);
+      socket.off("room_left", handleRoomLeft);
     };
   }, [socket, roomId]);
 
   const handleLeaveRoom = () => {
     if (socket) {
-      socket.emit('leave_room');
+      socket.emit("leave_room");
     }
     // Navigate back to home page
-    window.location.href = '/';
+    window.location.href = "/";
   };
 
   if (error) {
     return (
-      <div style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        minHeight: '100vh',
-        background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)',
-        color: 'white',
-        fontFamily: 'Arial, sans-serif'
-      }}>
-        <div style={{
-          background: 'rgba(244, 67, 54, 0.2)',
-          border: '2px solid #f44336',
-          borderRadius: '10px',
-          padding: '30px',
-          textAlign: 'center',
-          maxWidth: '400px'
-        }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          minHeight: "100vh",
+          background:
+            "linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)",
+          color: "white",
+          fontFamily: "Arial, sans-serif",
+        }}
+      >
+        <div
+          style={{
+            background: "rgba(244, 67, 54, 0.2)",
+            border: "2px solid #f44336",
+            borderRadius: "10px",
+            padding: "30px",
+            textAlign: "center",
+            maxWidth: "400px",
+          }}
+        >
           <h2>Error</h2>
           <p>{error}</p>
-          <button 
-            onClick={() => window.location.href = '/'}
+          <button
+            onClick={() => (window.location.href = "/")}
             style={{
-              background: '#ffd700',
-              color: '#1a1a2e',
-              border: 'none',
-              padding: '10px 20px',
-              borderRadius: '5px',
-              cursor: 'pointer',
-              fontWeight: 'bold'
+              background: "#ffd700",
+              color: "#1a1a2e",
+              border: "none",
+              padding: "10px 20px",
+              borderRadius: "5px",
+              cursor: "pointer",
+              fontWeight: "bold",
             }}
           >
             Back to Home
@@ -542,33 +604,38 @@ const TetrisGameContainer: React.FC<TetrisGameContainerProps> = ({ roomId }) => 
 
   if (!isConnected || !room || !currentPlayer) {
     return (
-      <div style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        minHeight: '100vh',
-        background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)',
-        color: 'white',
-        fontFamily: 'Arial, sans-serif'
-      }}>
-        <div style={{
-          background: 'rgba(255, 255, 255, 0.1)',
-          borderRadius: '10px',
-          padding: '30px',
-          textAlign: 'center'
-        }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          minHeight: "100vh",
+          background:
+            "linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)",
+          color: "white",
+          fontFamily: "Arial, sans-serif",
+        }}
+      >
+        <div
+          style={{
+            background: "rgba(255, 255, 255, 0.1)",
+            borderRadius: "10px",
+            padding: "30px",
+            textAlign: "center",
+          }}
+        >
           <h2>Connecting to Room {roomId}...</h2>
-          <div style={{ marginTop: '20px' }}>🔄 Loading...</div>
+          <div style={{ marginTop: "20px" }}>🔄 Loading...</div>
         </div>
       </div>
     );
   }
 
   return (
-    <TetrisGame 
-      room={room} 
-      currentPlayer={currentPlayer} 
-      onLeaveRoom={handleLeaveRoom} 
+    <TetrisGame
+      room={room}
+      currentPlayer={currentPlayer}
+      onLeaveRoom={handleLeaveRoom}
     />
   );
 };

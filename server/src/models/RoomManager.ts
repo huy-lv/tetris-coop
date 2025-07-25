@@ -164,8 +164,16 @@ export class RoomManager {
 
     // Reset all players' game state
     room.players.forEach((player) => {
+      console.log(`🔄 Resetting player ${player.name}`);
       const newPlayer = initializePlayer(player.id, player.name);
       newPlayer.isReady = true;
+      console.log(
+        `🧱 New player state for ${
+          player.name
+        }: currentPiece=${!!newPlayer.currentPiece}, type=${
+          newPlayer.currentPiece?.type
+        }`
+      );
       room.players.set(player.id, newPlayer);
     });
 

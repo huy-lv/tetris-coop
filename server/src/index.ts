@@ -279,6 +279,9 @@ io.on("connection", (socket) => {
         );
 
         if (roomManager.startGame(socket.data.roomId)) {
+          console.log(
+            `🚀 Game started manually, emitting game_started event for room ${room.code}`
+          );
           io.to(socket.data.roomId).emit("game_started");
           startGameLoop(socket.data.roomId);
           console.log(`✅ Game manually started in room ${room.code}`);
@@ -380,29 +383,57 @@ io.on("connection", (socket) => {
 });
 
 function startGameLoop(roomId: string) {
+  console.log(`🎮 Starting game loop for room ${roomId}`);
   const gameLoop = setInterval(() => {
     const room = roomManager.getRoom(roomId);
     if (!room || room.gameState !== GameState.PLAYING) {
+      console.log(
+        `🛑 Game loop stopping for room ${roomId}: room=${!!room}, gameState=${
+          room?.gameState
+        }`
+      );
       clearInterval(gameLoop);
       gameLoops.delete(roomId);
       return;
     }
 
+    console.log(
+      `🔄 Game loop tick for room ${room.code}, players:`,
+      room.players.size
+    );
     let gameStateChanged = false;
 
     // Move pieces down for all players
     room.players.forEach((player) => {
       if (!player.isGameOver && player.currentPiece) {
+        console.log(
+          `🧱 Moving piece down for ${
+            player.name
+          }: currentPiece=${!!player.currentPiece}, type=${
+            player.currentPiece?.type
+          }, pos=(${player.currentPiece?.x}, ${player.currentPiece?.y})`
+        );
         const moved = movePiece(player, "down");
+        console.log(`🧱 Move result for ${player.name}: moved=${moved}`);
         if (!moved) {
           // Piece couldn't move down, lock it
+          console.log(`🔒 Locking piece for ${player.name}`);
           lockPiece(player);
           gameStateChanged = true;
+        } else {
+          gameStateChanged = true; // Also mark as changed when piece moves
         }
+      } else {
+        console.log(
+          `⏭️ Skipping ${player.name}: gameOver=${
+            player.isGameOver
+          }, hasPiece=${!!player.currentPiece}`
+        );
       }
     });
 
     if (gameStateChanged) {
+      console.log(`📡 Sending game state update for room ${room.code}`);
       // Send updated game state
       io.to(roomId).emit("game_state_update", {
         players: Array.from(room.players.values()),
@@ -412,7 +443,14 @@ function startGameLoop(roomId: string) {
       const alivePlayers = Array.from(room.players.values()).filter(
         (p) => !p.isGameOver
       );
-      if (alivePlayers.length <= 1) {
+      
+      // For single player: end when player is game over
+      // For multiplayer: end when 1 or fewer players remain
+      const shouldEndGame = room.players.size === 1 
+        ? alivePlayers.length === 0  // Single player: end when they're game over
+        : alivePlayers.length <= 1;  // Multiplayer: end when 1 or fewer remain
+        
+      if (shouldEndGame) {
         const winner = alivePlayers[0];
         roomManager.endGame(roomId, winner?.id);
 
@@ -420,8 +458,10 @@ function startGameLoop(roomId: string) {
         gameLoops.delete(roomId);
 
         io.to(roomId).emit("game_ended", winner?.id);
-        console.log(`Game loop ended for room ${room.code}`);
+        console.log(`🏁 Game loop ended for room ${room.code} - alivePlayers: ${alivePlayers.length}, totalPlayers: ${room.players.size}`);
       }
+    } else {
+      console.log(`⏸️ No game state changes for room ${room.code}`);
     }
   }, 1000); // 1 second per drop
 
