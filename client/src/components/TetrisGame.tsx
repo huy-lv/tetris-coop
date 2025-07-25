@@ -11,9 +11,11 @@ import NextPiece from "./NextPiece";
 import HoldPiece from "./HoldPiece";
 import Controls from "./Controls";
 import TouchControls from "./TouchControls";
+import FireballAnimation from "./FireballAnimation";
 import { GAME_CONTROLS, REPEATABLE_ACTIONS } from "../constants/gameControls";
 
 const GameContainer = styled.div`
+  position: relative;
   display: flex;
   min-height: 100vh;
   background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
@@ -187,10 +189,64 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
   const [showMessage, setShowMessage] = useState<string | null>(null);
   const [isReady, setIsReady] = useState(currentPlayer.isReady);
 
+  // Fireball animation state
+  const [activeFireballs, setActiveFireballs] = useState<
+    Array<{
+      id: string;
+      fromPlayerId: string;
+      toPlayerId: string;
+      playerName: string;
+      fromPosition: { x: number; y: number };
+      toPosition: { x: number; y: number };
+    }>
+  >([]);
+
   // Key repeat state management
   const pressedKeys = useRef<Set<string>>(new Set());
   const keyIntervals = useRef<Map<string, number>>(new Map());
   const initialDelayTimers = useRef<Map<string, number>>(new Map());
+
+  // Function to calculate player game board bottom row positions for fireball animations
+  const getPlayerBottomRowPosition = useCallback(
+    (playerId: string) => {
+      const playerIndex = gameState.players.findIndex((p) => p.id === playerId);
+
+      // Try to find the actual game board element for this player
+      const gameBoards = document.querySelectorAll(
+        '[data-testid="game-board"], .game-board, [class*="Board"]'
+      );
+
+      if (gameBoards[playerIndex]) {
+        const boardElement = gameBoards[playerIndex];
+        const rect = boardElement.getBoundingClientRect();
+
+        // Calculate the bottom center of the game board
+        return {
+          x: rect.left + rect.width / 2,
+          y: rect.bottom - 10, // Slightly above the bottom border
+        };
+      }
+
+      // Fallback: estimate position based on player index and layout
+      const baseX = window.innerWidth / 2;
+      const baseY = window.innerHeight / 2;
+      const offset = 400; // Approximate distance between player boards
+      const boardHeight = 500; // Approximate board height
+
+      return {
+        x: baseX + (playerIndex - 1) * offset,
+        y: baseY + boardHeight / 2 - 20, // Bottom of estimated board
+      };
+    },
+    [gameState.players]
+  );
+
+  // Function to handle fireball animation completion
+  const handleFireballComplete = useCallback((fireballId: string) => {
+    setActiveFireballs((prev) =>
+      prev.filter((fireball) => fireball.id !== fireballId)
+    );
+  }, []);
 
   // Update gameState when room prop changes
   useEffect(() => {
@@ -466,29 +522,55 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
       setTimeout(() => setShowMessage(null), 5000);
     };
 
-    const handleGarbageIncoming = (data: {
-      playerId: string;
+    const handleFireballAttack = (data: {
+      fromPlayerId: string;
+      fromPlayerName: string;
+      targetPlayerIds: string[];
       rowCount: number;
     }) => {
-      // Don't add garbage to the player who caused it or to players who are already out
+      // Show fireball animations to ALL players
+      const fromPosition = getPlayerBottomRowPosition(data.fromPlayerId);
+
+      // Create fireballs for each target player
+      data.targetPlayerIds.forEach((targetPlayerId) => {
+        const toPosition = getPlayerBottomRowPosition(targetPlayerId);
+        const fireballId = `${
+          data.fromPlayerId
+        }-${targetPlayerId}-${Date.now()}`;
+
+        setActiveFireballs((prev) => [
+          ...prev,
+          {
+            id: fireballId,
+            fromPlayerId: data.fromPlayerId,
+            toPlayerId: targetPlayerId,
+            playerName: data.fromPlayerName,
+            fromPosition,
+            toPosition,
+          },
+        ]);
+      });
+    };
+
+    const handleGarbageIncoming = (data: {
+      playerId: string;
+      playerName: string;
+      rowCount: number;
+    }) => {
+      // Only apply garbage to the receiving player (not the sender)
       if (
         data.playerId !== currentPlayer.id &&
         !currentPlayer.isGameOver &&
         gameState.gameState === GameState.PLAYING
       ) {
-        const playerSendingGarbage = gameState.players.find(
-          (p) => p.id === data.playerId
-        );
-        const playerName = playerSendingGarbage
-          ? playerSendingGarbage.name
-          : "Another player";
-
         // Show a message about the incoming garbage
-        setShowMessage(`${playerName} sent garbage!`);
+        setShowMessage(`${data.playerName} sent garbage!`);
         setTimeout(() => setShowMessage(null), 1000);
 
-        // Apply the garbage to this player
-        socket.emit("apply_garbage");
+        // Apply the garbage to this player after a delay to sync with animation
+        setTimeout(() => {
+          socket.emit("apply_garbage");
+        }, 600); // Match faster fireball animation duration
       }
     };
 
@@ -501,6 +583,7 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
     socket.on("game_state_update", handleGameStateUpdate);
     socket.on("player_lost", handlePlayerLost);
     socket.on("game_ended", handleGameEnded);
+    socket.on("fireball_attack", handleFireballAttack);
     socket.on("garbage_incoming", handleGarbageIncoming);
 
     return () => {
@@ -513,6 +596,7 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
       socket.off("game_state_update", handleGameStateUpdate);
       socket.off("player_lost", handlePlayerLost);
       socket.off("game_ended", handleGameEnded);
+      socket.off("fireball_attack", handleFireballAttack);
       socket.off("garbage_incoming", handleGarbageIncoming);
     };
   }, [
@@ -521,6 +605,7 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
     currentPlayer.id,
     currentPlayer.isGameOver,
     gameState.gameState,
+    getPlayerBottomRowPosition,
   ]);
 
   useEffect(() => {
@@ -590,7 +675,7 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
           transition={{ duration: 0.5 }}
         >
           {gameState.players.map((player) => (
-            <PlayerGameArea key={player.id}>
+            <PlayerGameArea key={player.id} data-player-id={player.id}>
               <PlayerName>
                 {player.name}
                 {player.id === currentPlayer.id && " (You)"}
@@ -834,6 +919,18 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
 
       {/* Touch controls for mobile */}
       <TouchControls onAction={handleAction} isCurrentPlayer={true} />
+
+      {/* Fireball animations */}
+      {activeFireballs.map((fireball) => (
+        <FireballAnimation
+          key={fireball.id}
+          isVisible={true}
+          fromPosition={fireball.fromPosition}
+          toPosition={fireball.toPosition}
+          playerName={fireball.playerName}
+          onComplete={() => handleFireballComplete(fireball.id)}
+        />
+      ))}
     </GameContainer>
   );
 };

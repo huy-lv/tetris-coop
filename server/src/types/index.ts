@@ -82,7 +82,17 @@ export interface ServerToClientEvents {
     clearedRows: number[];
     dropX: number;
   }) => void;
-  garbage_incoming: (data: { playerId: string; rowCount: number }) => void;
+  garbage_incoming: (data: {
+    playerId: string;
+    playerName: string;
+    rowCount: number;
+  }) => void;
+  fireball_attack: (data: {
+    fromPlayerId: string;
+    fromPlayerName: string;
+    targetPlayerIds: string[];
+    rowCount: number;
+  }) => void;
   player_lost: (playerId: string) => void;
   game_ended: (winnerId?: string) => void;
   error: (message: string) => void;
@@ -119,7 +129,7 @@ export interface SocketData {
 }
 
 // Test mode constant - when true, only spawn O pieces for testing
-export const TestMode = false;
+export const TestMode = true;
 
 // Game speed increase interval - speed increases every 10 seconds for testing
 export const TimeToIncreaseSpeed = 60000; // 10 seconds in milliseconds

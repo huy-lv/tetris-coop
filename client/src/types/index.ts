@@ -87,7 +87,17 @@ export interface ServerToClientEvents {
     clearedRows: number[];
     dropX: number;
   }) => void;
-  garbage_incoming: (data: { playerId: string; rowCount: number }) => void;
+  garbage_incoming: (data: {
+    playerId: string;
+    playerName: string;
+    rowCount: number;
+  }) => void;
+  fireball_attack: (data: {
+    fromPlayerId: string;
+    fromPlayerName: string;
+    targetPlayerIds: string[];
+    rowCount: number;
+  }) => void;
   player_lost: (playerId: string) => void;
   game_ended: (winnerId?: string) => void;
   error: (message: string) => void;
@@ -138,6 +148,3 @@ export const BOARD_COLORS = [
   "#ffffff", // Current falling piece
   "#888888", // Garbage row cell
 ];
-
-// Test mode constant - when true, only spawn O pieces for testing
-export const TestMode = true;

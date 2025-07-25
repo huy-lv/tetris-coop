@@ -331,7 +331,7 @@ const GameBoard: React.FC<GameBoardProps> = ({
 
   return (
     <BoardContainer>
-      <Board>
+      <Board data-testid="game-board">
         {renderBoard.map((row, rowIndex) =>
           row.map((cell, colIndex) => {
             const cellKey = `${rowIndex}-${colIndex}`;

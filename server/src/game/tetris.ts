@@ -499,9 +499,34 @@ export function lockPiece(
           // Calculate number of garbage rows to send (1 row per 2 lines cleared)
           const garbageRowsToSend = Math.floor(linesCleared / 2);
 
-          // Emit garbage rows event to notify other players
+          // Get all sockets in the room to find other players
+          const roomSockets = Array.from(room);
+          const targetPlayerIds: string[] = [];
+
+          // Find other players (not the attacking player)
+          roomSockets.forEach((socketId) => {
+            const socket = io.sockets.sockets.get(socketId);
+            if (
+              socket &&
+              socket.data.playerId &&
+              socket.data.playerId !== player.id
+            ) {
+              targetPlayerIds.push(socket.data.playerId);
+            }
+          });
+
+          // Emit fireball animation to ALL players in the room
+          io.to(roomId).emit("fireball_attack", {
+            fromPlayerId: player.id,
+            fromPlayerName: player.name,
+            targetPlayerIds: targetPlayerIds,
+            rowCount: garbageRowsToSend,
+          });
+
+          // Emit garbage rows event to notify other players (for applying garbage)
           io.to(roomId).emit("garbage_incoming", {
             playerId: player.id,
+            playerName: player.name,
             rowCount: garbageRowsToSend,
           });
         }
