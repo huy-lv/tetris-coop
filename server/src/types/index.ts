@@ -116,4 +116,4 @@ export interface SocketData {
 export const TestMode = false;
 
 // Game speed increase interval - speed increases every 10 seconds for testing
-export const TimeToIncreaseSpeed = 120000; // 10 seconds in milliseconds
+export const TimeToIncreaseSpeed = 60000; // 10 seconds in milliseconds
