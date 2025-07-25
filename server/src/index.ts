@@ -309,6 +309,76 @@ io.on("connection", (socket) => {
     }
   });
 
+  // Add pause game event handler
+  socket.on("pause_game", () => {
+    if (socket.data.roomId && socket.data.playerId) {
+      const room = roomManager.getRoom(socket.data.roomId);
+
+      if (!room) {
+        console.log(`❌ Room not found for pause: ${socket.data.roomId}`);
+        return;
+      }
+
+      // Only allow pausing if the game is in playing state
+      if (room.gameState !== GameState.PLAYING) {
+        console.log(
+          `⚠️ Cannot pause game in room ${room.code}: current state is ${room.gameState}`
+        );
+        return;
+      }
+
+      if (roomManager.pauseGame(socket.data.roomId)) {
+        console.log(`⏸️ Game paused in room ${room.code} by ${socket.data.playerId}`);
+        
+        // Notify all players in the room
+        io.to(socket.data.roomId).emit("game_paused");
+        
+        // Pause the game loop by not scheduling the next tick
+        const gameLoop = gameLoops.get(socket.data.roomId);
+        if (gameLoop) {
+          clearTimeout(gameLoop);
+          gameLoops.delete(socket.data.roomId);
+          console.log(`⏸️ Game loop paused for room ${room.code}`);
+        }
+      } else {
+        console.log(`❌ Failed to pause game in room ${room.code}`);
+      }
+    }
+  });
+
+  // Add resume game event handler
+  socket.on("resume_game", () => {
+    if (socket.data.roomId && socket.data.playerId) {
+      const room = roomManager.getRoom(socket.data.roomId);
+
+      if (!room) {
+        console.log(`❌ Room not found for resume: ${socket.data.roomId}`);
+        return;
+      }
+
+      // Only allow resuming if the game is in paused state
+      if (room.gameState !== GameState.PAUSED) {
+        console.log(
+          `⚠️ Cannot resume game in room ${room.code}: current state is ${room.gameState}`
+        );
+        return;
+      }
+
+      if (roomManager.resumeGame(socket.data.roomId)) {
+        console.log(`▶️ Game resumed in room ${room.code} by ${socket.data.playerId}`);
+        
+        // Notify all players in the room
+        io.to(socket.data.roomId).emit("game_resumed");
+        
+        // Restart the game loop
+        startGameLoop(socket.data.roomId);
+        console.log(`▶️ Game loop resumed for room ${room.code}`);
+      } else {
+        console.log(`❌ Failed to resume game in room ${room.code}`);
+      }
+    }
+  });
+
   socket.on("game_action", (action: GameAction) => {
     if (socket.data.roomId && socket.data.playerId) {
       const room = roomManager.getRoom(socket.data.roomId);
@@ -422,7 +492,7 @@ function startGameLoop(roomId: string) {
 
   const runGameTick = () => {
     const room = roomManager.getRoom(roomId);
-    if (!room || room.gameState !== GameState.PLAYING) {
+    if (!room || (room.gameState !== GameState.PLAYING && room.gameState !== GameState.PAUSED)) {
       console.log(
         `🛑 Game loop stopping for room ${roomId}: room=${!!room}, gameState=${
           room?.gameState
@@ -430,6 +500,14 @@ function startGameLoop(roomId: string) {
       );
       if (gameLoop) clearTimeout(gameLoop);
       gameLoops.delete(roomId);
+      return;
+    }
+
+    // If game is paused, just maintain the loop without processing
+    if (room.gameState === GameState.PAUSED) {
+      console.log(`⏸️ Game is paused in room ${room.code}, skipping tick`);
+      gameLoop = setTimeout(runGameTick, 1000); // Check again after 1 second
+      gameLoops.set(roomId, gameLoop);
       return;
     }
 

@@ -68,6 +68,8 @@ export interface ServerToClientEvents {
   room_left: (playerId: string) => void;
   player_ready: (playerId: string, isReady: boolean) => void;
   game_started: () => void;
+  game_paused: () => void;
+  game_resumed: () => void;
   game_state_update: (gameState: { players: Player[] }) => void;
   speed_increased: (data: { dropInterval: number; speedLevel: number }) => void;
   lines_clearing: (data: {
@@ -102,6 +104,8 @@ export interface ClientToServerEvents {
   leave_room: () => void;
   player_ready: (isReady: boolean) => void;
   start_game: () => void;
+  pause_game: () => void;
+  resume_game: () => void;
   game_action: (action: GameAction) => void;
 }
 

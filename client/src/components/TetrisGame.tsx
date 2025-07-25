@@ -419,6 +419,18 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
       setTimeout(() => setShowMessage(null), 2000);
     };
 
+    const handleGamePaused = () => {
+      setShowMessage("Game Paused");
+      setGameState((prev) => ({ ...prev, gameState: GameState.PAUSED }));
+      setTimeout(() => setShowMessage(null), 2000);
+    };
+
+    const handleGameResumed = () => {
+      setShowMessage("Game Resumed");
+      setGameState((prev) => ({ ...prev, gameState: GameState.PLAYING }));
+      setTimeout(() => setShowMessage(null), 2000);
+    };
+
     const handleGameStateUpdate = (update: { players: Player[] }) => {
       console.log("🎮 Game state update received:", {
         playerCount: update.players.length,
@@ -462,6 +474,8 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
     socket.on("room_left", handleRoomLeft);
     socket.on("player_ready", handlePlayerReady);
     socket.on("game_started", handleGameStarted);
+    socket.on("game_paused", handleGamePaused);
+    socket.on("game_resumed", handleGameResumed);
     socket.on("game_state_update", handleGameStateUpdate);
     socket.on("player_lost", handlePlayerLost);
     socket.on("game_ended", handleGameEnded);
@@ -471,6 +485,8 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
       socket.off("room_left", handleRoomLeft);
       socket.off("player_ready", handlePlayerReady);
       socket.off("game_started", handleGameStarted);
+      socket.off("game_paused", handleGamePaused);
+      socket.off("game_resumed", handleGameResumed);
       socket.off("game_state_update", handleGameStateUpdate);
       socket.off("player_lost", handlePlayerLost);
       socket.off("game_ended", handleGameEnded);
@@ -517,6 +533,16 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
     });
     socket.emit("start_game");
   };
+  
+  const handlePauseGame = () => {
+    if (!socket) return;
+    socket.emit("pause_game");
+  };
+
+  const handleResumeGame = () => {
+    if (!socket) return;
+    socket.emit("resume_game");
+  };
 
   const handleLeaveRoom = () => {
     if (socket) {
@@ -542,12 +568,41 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
               </PlayerName>
 
               <GameLayoutContainer>
-                <GameBoard
-                  board={player.gameBoard}
-                  currentPiece={player.currentPiece}
-                  isCurrentPlayer={player.id === currentPlayer.id}
-                  playerId={player.id}
-                />
+                <div style={{ position: 'relative' }}>
+                  {(gameState.gameState === GameState.PLAYING || gameState.gameState === GameState.PAUSED) && player.id === currentPlayer.id && (
+                    <motion.button
+                      onClick={gameState.gameState === GameState.PAUSED ? handleResumeGame : handlePauseGame}
+                      style={{
+                        position: 'absolute',
+                        top: '10px',
+                        right: '10px',
+                        width: '40px',
+                        height: '40px',
+                        borderRadius: '50%',
+                        background: 'rgba(0, 0, 0, 0.5)',
+                        border: '2px solid rgba(255, 215, 0, 0.5)',
+                        color: '#ffd700',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                        zIndex: 100,
+                        padding: 0,
+                        fontSize: '18px'
+                      }}
+                      whileHover={{ scale: 1.1, background: 'rgba(0, 0, 0, 0.7)' }}
+                      whileTap={{ scale: 0.9 }}
+                    >
+                      {gameState.gameState === GameState.PAUSED ? "▶️" : "⏸️"}
+                    </motion.button>
+                  )}
+                  <GameBoard
+                    board={player.gameBoard}
+                    currentPiece={player.currentPiece}
+                    isCurrentPlayer={player.id === currentPlayer.id}
+                    playerId={player.id}
+                  />
+                </div>
 
                 <SideComponents>
                   <HoldPiece

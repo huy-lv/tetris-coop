@@ -231,6 +231,30 @@ export class RoomManager {
     return true;
   }
 
+  pauseGame(roomId: string): boolean {
+    const room = this.rooms.get(roomId);
+    if (!room) return false;
+
+    // Only allow pausing if the game is in playing state
+    if (room.gameState !== GameState.PLAYING) return false;
+
+    room.gameState = GameState.PAUSED;
+    console.log(`⏸️ Game paused in room ${room.code}`);
+    return true;
+  }
+
+  resumeGame(roomId: string): boolean {
+    const room = this.rooms.get(roomId);
+    if (!room) return false;
+
+    // Only allow resuming if the game is in paused state
+    if (room.gameState !== GameState.PAUSED) return false;
+
+    room.gameState = GameState.PLAYING;
+    console.log(`▶️ Game resumed in room ${room.code}`);
+    return true;
+  }
+
   // Check if it's time to increase drop speed and update if needed
   checkAndUpdateDropSpeed(roomId: string): boolean {
     const room = this.rooms.get(roomId);
