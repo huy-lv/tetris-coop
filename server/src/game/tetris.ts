@@ -289,6 +289,7 @@ export function rotatePiece(player: Player): boolean {
     (player.currentPiece.rotation + 1) %
     TETROMINOES[player.currentPiece.type].length;
 
+  // First try rotation at current position
   if (
     isValidPosition(
       player.gameBoard,
@@ -304,6 +305,41 @@ export function rotatePiece(player: Player): boolean {
     return true;
   }
 
+  // If rotation fails, try wall kicks (small position adjustments)
+  const wallKickOffsets = [
+    { x: -1, y: 0 }, // Try one step left
+    { x: 1, y: 0 }, // Try one step right
+    { x: -2, y: 0 }, // Try two steps left
+    { x: 2, y: 0 }, // Try two steps right
+    { x: 0, y: -1 }, // Try one step up
+    { x: -1, y: -1 }, // Try one step left and up
+    { x: 1, y: -1 }, // Try one step right and up
+  ];
+
+  for (const offset of wallKickOffsets) {
+    const testX = player.currentPiece.x + offset.x;
+    const testY = player.currentPiece.y + offset.y;
+
+    if (
+      isValidPosition(
+        player.gameBoard,
+        player.currentPiece,
+        testX,
+        testY,
+        newRotation
+      )
+    ) {
+      // Found a valid position with wall kick
+      player.currentPiece.x = testX;
+      player.currentPiece.y = testY;
+      player.currentPiece.rotation = newRotation;
+      player.currentPiece.shape =
+        TETROMINOES[player.currentPiece.type][newRotation];
+      return true;
+    }
+  }
+
+  // If all wall kicks fail, rotation is not possible
   return false;
 }
 
