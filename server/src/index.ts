@@ -112,6 +112,9 @@ io.on("connection", (socket) => {
         isGameActive: room.isGameActive,
         maxPlayers: room.maxPlayers,
         createdAt: room.createdAt,
+        dropInterval: room.dropInterval,
+        gameStartTime: room.gameStartTime,
+        lastSpeedIncrease: room.lastSpeedIncrease,
         players: Array.from(room.players.values()),
       });
 
@@ -164,6 +167,9 @@ io.on("connection", (socket) => {
         isGameActive: room!.isGameActive,
         maxPlayers: room!.maxPlayers,
         createdAt: room!.createdAt,
+        dropInterval: room!.dropInterval,
+        gameStartTime: room!.gameStartTime,
+        lastSpeedIncrease: room!.lastSpeedIncrease,
         players: Array.from(room!.players.values()),
       });
 
@@ -410,7 +416,11 @@ io.on("connection", (socket) => {
 
 function startGameLoop(roomId: string) {
   console.log(`🎮 Starting game loop for room ${roomId}`);
-  const gameLoop = setInterval(() => {
+
+  let gameLoop: NodeJS.Timeout;
+  let currentInterval = 1000; // Start with 1 second
+
+  const runGameTick = () => {
     const room = roomManager.getRoom(roomId);
     if (!room || room.gameState !== GameState.PLAYING) {
       console.log(
@@ -418,9 +428,43 @@ function startGameLoop(roomId: string) {
           room?.gameState
         }`
       );
-      clearInterval(gameLoop);
+      if (gameLoop) clearTimeout(gameLoop);
       gameLoops.delete(roomId);
       return;
+    }
+
+    // Check if speed should be increased
+    const speedIncreased = roomManager.checkAndUpdateDropSpeed(roomId);
+    if (speedIncreased) {
+      // Update current interval to match room's new drop interval
+      currentInterval = room.dropInterval;
+      console.log(
+        `🚀 Game loop speed updated for room ${room.code}: ${currentInterval}ms`
+      );
+
+      // Notify clients about speed increase
+      const speedLevel = Math.max(
+        1,
+        Math.min(10, Math.round((1000 - room.dropInterval) / 100) + 1)
+      );
+      io.to(roomId).emit("speed_increased", {
+        dropInterval: room.dropInterval,
+        speedLevel: speedLevel,
+      });
+
+      // Also send updated room data
+      io.to(roomId).emit("room_joined", {
+        id: room.id,
+        code: room.code,
+        gameState: room.gameState,
+        isGameActive: room.isGameActive,
+        maxPlayers: room.maxPlayers,
+        createdAt: room.createdAt,
+        dropInterval: room.dropInterval,
+        gameStartTime: room.gameStartTime,
+        lastSpeedIncrease: room.lastSpeedIncrease,
+        players: Array.from(room.players.values()),
+      });
     }
 
     console.log(
@@ -489,19 +533,25 @@ function startGameLoop(roomId: string) {
         const winner = alivePlayers[0];
         roomManager.endGame(roomId, winner?.id);
 
-        clearInterval(gameLoop);
+        if (gameLoop) clearTimeout(gameLoop);
         gameLoops.delete(roomId);
 
         io.to(roomId).emit("game_ended", winner?.id);
         console.log(
           `🏁 Game loop ended for room ${room.code} - alivePlayers: ${alivePlayers.length}, totalPlayers: ${room.players.size}`
         );
+        return;
       }
     } else {
       console.log(`⏸️ No game state changes for room ${room.code}`);
     }
-  }, 1000); // 1 second per drop
 
+    // Schedule next tick with current interval (may have changed)
+    gameLoop = setTimeout(runGameTick, currentInterval);
+  };
+
+  // Start the first tick
+  gameLoop = setTimeout(runGameTick, currentInterval);
   gameLoops.set(roomId, gameLoop);
 }
 

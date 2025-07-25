@@ -559,6 +559,7 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
                     score={player.score}
                     level={player.level}
                     lines={player.lines}
+                    dropInterval={room?.dropInterval}
                   />
                   <Controls />
                 </SideComponents>
@@ -777,7 +778,7 @@ const TetrisGameContainer: React.FC<TetrisGameContainerProps> = ({
           "TetrisGameContainer: Failed to join room:",
           response.error
         );
-        
+
         // Set specific error messages based on error type
         let errorMessage = response.error || "Failed to join room";
         if (response.error === "Room is full") {
@@ -785,7 +786,7 @@ const TetrisGameContainer: React.FC<TetrisGameContainerProps> = ({
         } else if (response.error === "Game is already in progress") {
           errorMessage = `Game in room ${roomId} is already in progress. Please wait for the current game to finish or join another room.`;
         }
-        
+
         setError(errorMessage);
         setIsConnected(false);
       }
@@ -818,12 +819,29 @@ const TetrisGameContainer: React.FC<TetrisGameContainerProps> = ({
       setIsConnected(false);
     };
 
+    const handleSpeedIncreased = (data: {
+      dropInterval: number;
+      speedLevel: number;
+    }) => {
+      console.log("🚀 Speed increased:", data);
+      setRoom((prevRoom) =>
+        prevRoom
+          ? {
+              ...prevRoom,
+              dropInterval: data.dropInterval,
+            }
+          : null
+      );
+    };
+
     socket.on("room_joined", handleRoomJoined);
     socket.on("room_left", handleRoomLeft);
+    socket.on("speed_increased", handleSpeedIncreased);
 
     return () => {
       socket.off("room_joined", handleRoomJoined);
       socket.off("room_left", handleRoomLeft);
+      socket.off("speed_increased", handleSpeedIncreased);
     };
   }, [socket, roomId]);
 
@@ -838,7 +856,7 @@ const TetrisGameContainer: React.FC<TetrisGameContainerProps> = ({
   if (error) {
     const isRoomFull = error.includes("is full");
     const isGameInProgress = error.includes("already in progress");
-    
+
     return (
       <div
         style={{
@@ -854,7 +872,9 @@ const TetrisGameContainer: React.FC<TetrisGameContainerProps> = ({
       >
         <div
           style={{
-            background: isRoomFull ? "rgba(255, 193, 7, 0.2)" : "rgba(244, 67, 54, 0.2)",
+            background: isRoomFull
+              ? "rgba(255, 193, 7, 0.2)"
+              : "rgba(244, 67, 54, 0.2)",
             border: `2px solid ${isRoomFull ? "#ffc107" : "#f44336"}`,
             borderRadius: "10px",
             padding: "30px",
@@ -862,21 +882,31 @@ const TetrisGameContainer: React.FC<TetrisGameContainerProps> = ({
             maxWidth: "500px",
           }}
         >
-          <h2 style={{ 
-            color: isRoomFull ? "#ffc107" : "#f44336",
-            marginBottom: "20px",
-            fontSize: "24px"
-          }}>
-            {isRoomFull ? "🏠 Room Full" : isGameInProgress ? "🎮 Game In Progress" : "❌ Error"}
+          <h2
+            style={{
+              color: isRoomFull ? "#ffc107" : "#f44336",
+              marginBottom: "20px",
+              fontSize: "24px",
+            }}
+          >
+            {isRoomFull
+              ? "🏠 Room Full"
+              : isGameInProgress
+              ? "🎮 Game In Progress"
+              : "❌ Error"}
           </h2>
-          <p style={{ 
-            fontSize: "16px", 
-            lineHeight: "1.5", 
-            marginBottom: "25px" 
-          }}>
+          <p
+            style={{
+              fontSize: "16px",
+              lineHeight: "1.5",
+              marginBottom: "25px",
+            }}
+          >
             {error}
           </p>
-          <div style={{ display: "flex", gap: "10px", justifyContent: "center" }}>
+          <div
+            style={{ display: "flex", gap: "10px", justifyContent: "center" }}
+          >
             <button
               onClick={() => (window.location.href = "/")}
               style={{

@@ -21,6 +21,9 @@ export interface Room {
   isGameActive: boolean;
   maxPlayers: number;
   createdAt: Date;
+  dropInterval: number;
+  gameStartTime?: Date;
+  lastSpeedIncrease?: Date;
 }
 
 export const GameState = {
@@ -71,6 +74,7 @@ export interface ServerToClientEvents {
   player_ready: (playerId: string, isReady: boolean) => void;
   game_started: () => void;
   game_state_update: (gameState: { players: Player[] }) => void;
+  speed_increased: (data: { dropInterval: number; speedLevel: number }) => void;
   lines_clearing: (data: {
     playerId: string;
     clearedRows: number[];

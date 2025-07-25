@@ -21,6 +21,9 @@ export interface Room {
   isGameActive: boolean;
   maxPlayers: number;
   createdAt: Date;
+  gameStartTime?: Date;
+  dropInterval: number; // milliseconds between drops
+  lastSpeedIncrease?: Date;
 }
 
 export enum GameState {
@@ -66,6 +69,7 @@ export interface ServerToClientEvents {
   player_ready: (playerId: string, isReady: boolean) => void;
   game_started: () => void;
   game_state_update: (gameState: { players: Player[] }) => void;
+  speed_increased: (data: { dropInterval: number; speedLevel: number }) => void;
   lines_clearing: (data: {
     playerId: string;
     clearedRows: number[];
@@ -110,3 +114,6 @@ export interface SocketData {
 
 // Test mode constant - when true, only spawn O pieces for testing
 export const TestMode = false;
+
+// Game speed increase interval - speed increases every 10 seconds for testing
+export const TimeToIncreaseSpeed = 120000; // 10 seconds in milliseconds

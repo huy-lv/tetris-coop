@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from "uuid";
-import { Room, Player, GameState } from "../types";
+import { Room, Player, GameState, TimeToIncreaseSpeed } from "../types";
 import { initializePlayer } from "../game/tetris";
 
 export class RoomManager {
@@ -27,6 +27,7 @@ export class RoomManager {
       isGameActive: false,
       maxPlayers: 4,
       createdAt: new Date(),
+      dropInterval: 1000, // Start with 1 second drop interval
     };
 
     this.rooms.set(roomId, room);
@@ -52,7 +53,7 @@ export class RoomManager {
     // If room doesn't exist, create it
     if (!roomId) {
       console.log(`🆕 Room code "${roomCode}" not found, creating new room`);
-      
+
       // Create a new room with the specified room code
       roomId = uuidv4();
       const creator = initializePlayer(uuidv4(), playerName);
@@ -65,6 +66,7 @@ export class RoomManager {
         isGameActive: false,
         maxPlayers: 4,
         createdAt: new Date(),
+        dropInterval: 1000, // Start with 1 second drop interval
       };
 
       this.rooms.set(roomId, room);
@@ -95,7 +97,9 @@ export class RoomManager {
 
     // Check if room is full
     if (room.players.size >= room.maxPlayers) {
-      console.log(`❌ Room "${roomCode}" is full (${room.players.size}/${room.maxPlayers})`);
+      console.log(
+        `❌ Room "${roomCode}" is full (${room.players.size}/${room.maxPlayers})`
+      );
       return { success: false, error: "Room is full" };
     }
 
@@ -186,6 +190,9 @@ export class RoomManager {
 
     room.gameState = GameState.PLAYING;
     room.isGameActive = true;
+    room.gameStartTime = new Date(); // Track game start time
+    room.dropInterval = 1000; // Reset drop interval to 1 second
+    room.lastSpeedIncrease = new Date(); // Track last speed increase
 
     console.log(
       `🎮 Starting/Restarting game in room ${room.code} with ${room.players.size} players`
@@ -222,6 +229,57 @@ export class RoomManager {
     });
 
     return true;
+  }
+
+  // Check if it's time to increase drop speed and update if needed
+  checkAndUpdateDropSpeed(roomId: string): boolean {
+    const room = this.rooms.get(roomId);
+    if (!room) {
+      console.log(`❌ Speed check failed: room ${roomId} not found`);
+      return false;
+    }
+    if (!room.gameStartTime) {
+      console.log(
+        `❌ Speed check failed for room ${room.code}: no gameStartTime`
+      );
+      return false;
+    }
+    if (!room.lastSpeedIncrease) {
+      console.log(
+        `❌ Speed check failed for room ${room.code}: no lastSpeedIncrease`
+      );
+      return false;
+    }
+
+    const now = new Date();
+    const timeSinceLastIncrease =
+      now.getTime() - room.lastSpeedIncrease.getTime();
+
+    console.log(
+      `🕐 Speed check for room ${room.code}: ${timeSinceLastIncrease}ms since last increase (need ${TimeToIncreaseSpeed}ms)`
+    );
+
+    // Increase speed every TimeToIncreaseSpeed milliseconds
+    if (timeSinceLastIncrease >= TimeToIncreaseSpeed) {
+      // Decrease drop interval by 100ms, but don't go below 100ms
+      const newInterval = Math.max(100, room.dropInterval - 100);
+
+      if (newInterval !== room.dropInterval) {
+        room.dropInterval = newInterval;
+        room.lastSpeedIncrease = now;
+
+        console.log(
+          `🚀 Speed increased in room ${room.code}: new drop interval = ${newInterval}ms`
+        );
+        return true; // Speed was increased
+      } else {
+        console.log(
+          `⚠️ Speed already at minimum in room ${room.code}: ${room.dropInterval}ms`
+        );
+      }
+    }
+
+    return false; // No speed change
   }
 
   private areAllPlayersReady(room: Room): boolean {
