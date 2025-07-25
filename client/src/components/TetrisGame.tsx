@@ -777,7 +777,16 @@ const TetrisGameContainer: React.FC<TetrisGameContainerProps> = ({
           "TetrisGameContainer: Failed to join room:",
           response.error
         );
-        setError(response.error || "Failed to join room");
+        
+        // Set specific error messages based on error type
+        let errorMessage = response.error || "Failed to join room";
+        if (response.error === "Room is full") {
+          errorMessage = `Room ${roomId} is full! Please try another room or wait for someone to leave.`;
+        } else if (response.error === "Game is already in progress") {
+          errorMessage = `Game in room ${roomId} is already in progress. Please wait for the current game to finish or join another room.`;
+        }
+        
+        setError(errorMessage);
         setIsConnected(false);
       }
     });
@@ -827,6 +836,9 @@ const TetrisGameContainer: React.FC<TetrisGameContainerProps> = ({
   };
 
   if (error) {
+    const isRoomFull = error.includes("is full");
+    const isGameInProgress = error.includes("already in progress");
+    
     return (
       <div
         style={{
@@ -842,30 +854,62 @@ const TetrisGameContainer: React.FC<TetrisGameContainerProps> = ({
       >
         <div
           style={{
-            background: "rgba(244, 67, 54, 0.2)",
-            border: "2px solid #f44336",
+            background: isRoomFull ? "rgba(255, 193, 7, 0.2)" : "rgba(244, 67, 54, 0.2)",
+            border: `2px solid ${isRoomFull ? "#ffc107" : "#f44336"}`,
             borderRadius: "10px",
             padding: "30px",
             textAlign: "center",
-            maxWidth: "400px",
+            maxWidth: "500px",
           }}
         >
-          <h2>Error</h2>
-          <p>{error}</p>
-          <button
-            onClick={() => (window.location.href = "/")}
-            style={{
-              background: "#ffd700",
-              color: "#1a1a2e",
-              border: "none",
-              padding: "10px 20px",
-              borderRadius: "5px",
-              cursor: "pointer",
-              fontWeight: "bold",
-            }}
-          >
-            Back to Home
-          </button>
+          <h2 style={{ 
+            color: isRoomFull ? "#ffc107" : "#f44336",
+            marginBottom: "20px",
+            fontSize: "24px"
+          }}>
+            {isRoomFull ? "🏠 Room Full" : isGameInProgress ? "🎮 Game In Progress" : "❌ Error"}
+          </h2>
+          <p style={{ 
+            fontSize: "16px", 
+            lineHeight: "1.5", 
+            marginBottom: "25px" 
+          }}>
+            {error}
+          </p>
+          <div style={{ display: "flex", gap: "10px", justifyContent: "center" }}>
+            <button
+              onClick={() => (window.location.href = "/")}
+              style={{
+                background: "#ffd700",
+                color: "#1a1a2e",
+                border: "none",
+                padding: "12px 24px",
+                borderRadius: "5px",
+                cursor: "pointer",
+                fontWeight: "bold",
+                fontSize: "14px",
+              }}
+            >
+              🏠 Back to Home
+            </button>
+            {(isRoomFull || isGameInProgress) && (
+              <button
+                onClick={() => window.location.reload()}
+                style={{
+                  background: "rgba(255, 255, 255, 0.2)",
+                  color: "white",
+                  border: "2px solid rgba(255, 255, 255, 0.3)",
+                  padding: "12px 24px",
+                  borderRadius: "5px",
+                  cursor: "pointer",
+                  fontWeight: "bold",
+                  fontSize: "14px",
+                }}
+              >
+                🔄 Try Again
+              </button>
+            )}
+          </div>
         </div>
       </div>
     );

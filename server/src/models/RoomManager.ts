@@ -46,15 +46,39 @@ export class RoomManager {
       )}]`
     );
 
-    const roomId = this.roomCodes.get(roomCode);
+    let roomId = this.roomCodes.get(roomCode);
+    let room: Room | undefined;
+
+    // If room doesn't exist, create it
     if (!roomId) {
-      console.log(`❌ Room code "${roomCode}" not found in roomCodes map`);
-      return { success: false, error: "Room not found" };
+      console.log(`🆕 Room code "${roomCode}" not found, creating new room`);
+      
+      // Create a new room with the specified room code
+      roomId = uuidv4();
+      const creator = initializePlayer(uuidv4(), playerName);
+
+      room = {
+        id: roomId,
+        code: roomCode,
+        players: new Map([[creator.id, creator]]),
+        gameState: GameState.WAITING,
+        isGameActive: false,
+        maxPlayers: 4,
+        createdAt: new Date(),
+      };
+
+      this.rooms.set(roomId, room);
+      this.roomCodes.set(roomCode, roomId);
+
+      console.log(
+        `✅ Created new room with code "${roomCode}" for player "${playerName}"`
+      );
+      return { success: true, room, player: creator };
     }
 
     console.log(`✅ Found room ID: ${roomId} for code: ${roomCode}`);
 
-    const room = this.rooms.get(roomId);
+    room = this.rooms.get(roomId);
     if (!room) {
       console.log(`❌ Room ID "${roomId}" not found in rooms map`);
       return { success: false, error: "Room not found" };
@@ -69,14 +93,19 @@ export class RoomManager {
       return { success: true, room, player: existingPlayer };
     }
 
+    // Check if room is full
     if (room.players.size >= room.maxPlayers) {
+      console.log(`❌ Room "${roomCode}" is full (${room.players.size}/${room.maxPlayers})`);
       return { success: false, error: "Room is full" };
     }
 
+    // Check if game is already in progress
     if (room.gameState === GameState.PLAYING) {
+      console.log(`❌ Game in room "${roomCode}" is already in progress`);
       return { success: false, error: "Game is already in progress" };
     }
 
+    // Add new player to existing room
     const player = initializePlayer(uuidv4(), playerName);
     room.players.set(player.id, player);
 
