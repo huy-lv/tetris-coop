@@ -257,17 +257,17 @@ export function calculateGhostPiecePosition(
   piece: TetrisPiece
 ): TetrisPiece {
   if (!piece) return piece;
-  
+
   const ghostPiece = {
     ...piece,
-    y: piece.y
+    y: piece.y,
   };
-  
+
   // Drop the ghost piece to the lowest valid position
   while (isValidPosition(board, ghostPiece, undefined, ghostPiece.y + 1)) {
     ghostPiece.y++;
   }
-  
+
   return ghostPiece;
 }
 
@@ -280,10 +280,12 @@ export function holdPiece(player: Player): boolean {
   if (!player.holdPiece) {
     player.holdPiece = {
       ...player.currentPiece,
-      x: Math.floor(BOARD_WIDTH / 2) - Math.floor(player.currentPiece.shape[0].length / 2),
+      x:
+        Math.floor(BOARD_WIDTH / 2) -
+        Math.floor(player.currentPiece.shape[0].length / 2),
       y: 0,
       rotation: 0,
-      shape: TETROMINOES[player.currentPiece.type][0]
+      shape: TETROMINOES[player.currentPiece.type][0],
     };
     player.currentPiece = player.nextPiece;
     player.nextPiece = generateRandomPiece();
@@ -291,20 +293,24 @@ export function holdPiece(player: Player): boolean {
     // Swap current piece with hold piece
     const tempPiece = {
       ...player.holdPiece,
-      x: Math.floor(BOARD_WIDTH / 2) - Math.floor(player.holdPiece.shape[0].length / 2),
+      x:
+        Math.floor(BOARD_WIDTH / 2) -
+        Math.floor(player.holdPiece.shape[0].length / 2),
       y: 0,
       rotation: 0,
-      shape: TETROMINOES[player.holdPiece.type][0]
+      shape: TETROMINOES[player.holdPiece.type][0],
     };
-    
+
     player.holdPiece = {
       ...player.currentPiece,
-      x: Math.floor(BOARD_WIDTH / 2) - Math.floor(player.currentPiece.shape[0].length / 2),
+      x:
+        Math.floor(BOARD_WIDTH / 2) -
+        Math.floor(player.currentPiece.shape[0].length / 2),
       y: 0,
       rotation: 0,
-      shape: TETROMINOES[player.currentPiece.type][0]
+      shape: TETROMINOES[player.currentPiece.type][0],
     };
-    
+
     player.currentPiece = tempPiece;
   }
 
@@ -312,7 +318,10 @@ export function holdPiece(player: Player): boolean {
   player.canHold = false;
 
   // Check if game is over with the new piece
-  if (player.currentPiece && !isValidPosition(player.gameBoard, player.currentPiece)) {
+  if (
+    player.currentPiece &&
+    !isValidPosition(player.gameBoard, player.currentPiece)
+  ) {
     player.isGameOver = true;
     return false;
   }
@@ -491,7 +500,7 @@ export function lockPiece(
   // Set next piece as current and generate new next piece
   player.currentPiece = player.nextPiece;
   player.nextPiece = generateRandomPiece();
-  
+
   // Reset hold ability for next piece
   player.canHold = true;
 

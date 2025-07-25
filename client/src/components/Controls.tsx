@@ -8,6 +8,10 @@ const ControlsContainer = styled.div`
   padding: 15px;
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 215, 0, 0.3);
+
+  @media (max-width: 768px) {
+    display: none;
+  }
 `;
 
 const ControlsTitle = styled.div`

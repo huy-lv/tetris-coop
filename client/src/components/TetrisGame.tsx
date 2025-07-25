@@ -10,6 +10,7 @@ import GameStats from "./GameStats";
 import NextPiece from "./NextPiece";
 import HoldPiece from "./HoldPiece";
 import Controls from "./Controls";
+import TouchControls from "./TouchControls";
 import { GAME_CONTROLS, REPEATABLE_ACTIONS } from "../constants/gameControls";
 
 const GameContainer = styled.div`
@@ -18,6 +19,11 @@ const GameContainer = styled.div`
   background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
   color: white;
   font-family: "Arial", sans-serif;
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+    padding-bottom: 200px; /* Space for touch controls */
+  }
 `;
 
 const MainGameArea = styled.div`
@@ -26,12 +32,25 @@ const MainGameArea = styled.div`
   justify-content: center;
   align-items: center;
   padding: 20px;
+
+  @media (max-width: 768px) {
+    padding: 10px;
+    align-items: flex-start;
+    overflow-x: auto;
+  }
 `;
 
 const GameWrapper = styled(motion.div)`
   display: flex;
   gap: 30px;
   align-items: flex-start;
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+    gap: 15px;
+    width: 100%;
+    align-items: center;
+  }
 `;
 
 const PlayerGameArea = styled.div`
@@ -39,6 +58,11 @@ const PlayerGameArea = styled.div`
   flex-direction: column;
   align-items: center;
   gap: 15px;
+
+  @media (max-width: 768px) {
+    width: 100%;
+    max-width: 400px;
+  }
 `;
 
 const PlayerName = styled.div`
@@ -49,12 +73,44 @@ const PlayerName = styled.div`
   margin-bottom: 10px;
 `;
 
+const GameLayoutContainer = styled.div`
+  display: flex;
+  gap: 15px;
+  align-items: flex-start;
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+    align-items: center;
+  }
+`;
+
+const SideComponents = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+
+  @media (max-width: 768px) {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+  }
+`;
+
 const Sidebar = styled.div`
   width: 300px;
   padding: 20px;
   background: rgba(0, 0, 0, 0.3);
   backdrop-filter: blur(10px);
   border-left: 1px solid rgba(255, 255, 255, 0.1);
+
+  @media (max-width: 768px) {
+    width: 100%;
+    border-left: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 15px;
+    order: -1; /* Show sidebar above game on mobile */
+  }
 `;
 
 const RoomInfo = styled.div`
@@ -181,6 +237,36 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
       socket.emit("game_action", action);
     },
     [socket, gameState.gameState, currentPlayer.id, currentPlayer.isGameOver]
+  );
+
+  // Handle touch controls
+  const handleAction = useCallback(
+    (action: string) => {
+      switch (action) {
+        case "MOVE_LEFT":
+          sendGameAction("MOVE_LEFT");
+          break;
+        case "MOVE_RIGHT":
+          sendGameAction("MOVE_RIGHT");
+          break;
+        case "SOFT_DROP":
+          sendGameAction("SOFT_DROP");
+          break;
+        case "MOVE_UP":
+        case "ROTATE":
+          sendGameAction("ROTATE");
+          break;
+        case "HARD_DROP":
+          sendGameAction("HARD_DROP");
+          break;
+        case "HOLD":
+          sendGameAction("HOLD");
+          break;
+        default:
+          break;
+      }
+    },
+    [sendGameAction]
   );
 
   // Clean up intervals and timers
@@ -455,7 +541,7 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
                 {player.isGameOver && " - OUT"}
               </PlayerName>
 
-              <div style={{ display: "flex", gap: "15px", alignItems: "flex-start" }}>
+              <GameLayoutContainer>
                 <GameBoard
                   board={player.gameBoard}
                   currentPiece={player.currentPiece}
@@ -463,16 +549,10 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
                   playerId={player.id}
                 />
 
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "15px",
-                  }}
-                >
-                  <HoldPiece 
-                    piece={player.holdPiece} 
-                    canHold={player.canHold} 
+                <SideComponents>
+                  <HoldPiece
+                    piece={player.holdPiece}
+                    canHold={player.canHold}
                   />
                   <NextPiece piece={player.nextPiece} />
                   <GameStats
@@ -481,8 +561,8 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
                     lines={player.lines}
                   />
                   <Controls />
-                </div>
-              </div>
+                </SideComponents>
+              </GameLayoutContainer>
             </PlayerGameArea>
           ))}
         </GameWrapper>
@@ -653,6 +733,9 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
           </GameMessage>
         )}
       </AnimatePresence>
+
+      {/* Touch controls for mobile */}
+      <TouchControls onAction={handleAction} isCurrentPlayer={true} />
     </GameContainer>
   );
 };

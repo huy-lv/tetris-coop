@@ -7,7 +7,7 @@ type SocketType = Socket<ServerToClientEvents, ClientToServerEvents>;
 // Global socket instance to persist across component unmounts
 let globalSocket: SocketType | null = null;
 
-export const useSocket = (serverUrl: string = "http://localhost:3001") => {
+export const useSocket = (serverUrl: string = "http://192.168.2.76:3001") => {
   const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {

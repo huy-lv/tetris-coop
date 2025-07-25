@@ -55,7 +55,13 @@ export type TetrominoTypeValue =
   (typeof TetrominoType)[keyof typeof TetrominoType];
 
 export interface GameAction {
-  type: "MOVE_LEFT" | "MOVE_RIGHT" | "MOVE_DOWN" | "ROTATE" | "HARD_DROP" | "HOLD";
+  type:
+    | "MOVE_LEFT"
+    | "MOVE_RIGHT"
+    | "MOVE_DOWN"
+    | "ROTATE"
+    | "HARD_DROP"
+    | "HOLD";
   playerId: string;
 }
 

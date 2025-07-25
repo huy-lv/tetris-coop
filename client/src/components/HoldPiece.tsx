@@ -14,6 +14,12 @@ const HoldContainer = styled.div`
   flex-direction: column;
   align-items: center;
   justify-content: center;
+
+  @media (max-width: 768px) {
+    width: 70px;
+    height: 70px;
+    padding: 8px;
+  }
 `;
 
 const HoldTitle = styled.div`
@@ -22,12 +28,17 @@ const HoldTitle = styled.div`
   font-weight: bold;
   margin-bottom: 5px;
   text-align: center;
+
+  @media (max-width: 768px) {
+    font-size: 10px;
+    margin-bottom: 3px;
+  }
 `;
 
 const PiecePreview = styled.div<{ isDisabled?: boolean }>`
   display: grid;
   gap: 1px;
-  opacity: ${props => props.isDisabled ? 0.4 : 1};
+  opacity: ${(props) => (props.isDisabled ? 0.4 : 1)};
 `;
 
 const PreviewCell = styled.div<{ cellValue: number }>`

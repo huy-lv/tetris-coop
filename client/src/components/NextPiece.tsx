@@ -1,8 +1,8 @@
-import React from 'react';
-import styled from 'styled-components';
-import { motion } from 'framer-motion';
-import type { TetrisPiece } from '../types';
-import { TETROMINO_COLORS } from '../types';
+import React from "react";
+import styled from "styled-components";
+import { motion } from "framer-motion";
+import type { TetrisPiece } from "../types";
+import { TETROMINO_COLORS } from "../types";
 
 const NextPieceContainer = styled.div`
   background: rgba(255, 255, 255, 0.1);
@@ -10,6 +10,11 @@ const NextPieceContainer = styled.div`
   padding: 15px;
   min-width: 100px;
   text-align: center;
+
+  @media (max-width: 768px) {
+    padding: 10px;
+    min-width: 80px;
+  }
 `;
 
 const Title = styled.div`
@@ -17,6 +22,11 @@ const Title = styled.div`
   font-weight: bold;
   margin-bottom: 10px;
   color: #ffd700;
+
+  @media (max-width: 768px) {
+    font-size: 12px;
+    margin-bottom: 8px;
+  }
 `;
 
 const PieceGrid = styled.div`
@@ -25,20 +35,36 @@ const PieceGrid = styled.div`
   grid-template-rows: repeat(4, 20px);
   gap: 1px;
   justify-content: center;
+
+  @media (max-width: 768px) {
+    grid-template-columns: repeat(4, 16px);
+    grid-template-rows: repeat(4, 16px);
+    gap: 0.5px;
+  }
 `;
 
 const PieceCell = styled(motion.div)<{ hasBlock: boolean; pieceType?: string }>`
   width: 20px;
   height: 20px;
   border-radius: 2px;
-  background-color: ${props => 
-    props.hasBlock && props.pieceType ? TETROMINO_COLORS[props.pieceType as keyof typeof TETROMINO_COLORS] : 'transparent'
-  };
-  border: ${props => props.hasBlock ? '1px solid rgba(255, 255, 255, 0.2)' : 'none'};
-  
-  ${props => props.hasBlock && `
+  background-color: ${(props) =>
+    props.hasBlock && props.pieceType
+      ? TETROMINO_COLORS[props.pieceType as keyof typeof TETROMINO_COLORS]
+      : "transparent"};
+  border: ${(props) =>
+    props.hasBlock ? "1px solid rgba(255, 255, 255, 0.2)" : "none"};
+
+  ${(props) =>
+    props.hasBlock &&
+    `
     box-shadow: inset 0 0 5px rgba(255, 255, 255, 0.1);
   `}
+
+  @media (max-width: 768px) {
+    width: 16px;
+    height: 16px;
+    border-radius: 1px;
+  }
 `;
 
 interface NextPieceProps {
@@ -53,12 +79,14 @@ const NextPiece: React.FC<NextPieceProps> = ({ piece }) => {
       ));
     }
 
-    const grid = Array(4).fill(null).map(() => Array(4).fill(false));
-    
+    const grid = Array(4)
+      .fill(null)
+      .map(() => Array(4).fill(false));
+
     // Center the piece in the 4x4 grid
     const offsetX = Math.floor((4 - piece.shape[0].length) / 2);
     const offsetY = Math.floor((4 - piece.shape.length) / 2);
-    
+
     for (let row = 0; row < piece.shape.length; row++) {
       for (let col = 0; col < piece.shape[row].length; col++) {
         if (piece.shape[row][col]) {
@@ -71,24 +99,24 @@ const NextPiece: React.FC<NextPieceProps> = ({ piece }) => {
       }
     }
 
-    return grid.flat().map((hasBlock, index) => (
-      <PieceCell
-        key={index}
-        hasBlock={hasBlock}
-        pieceType={piece.type}
-        initial={{ scale: 0 }}
-        animate={{ scale: hasBlock ? 1 : 0 }}
-        transition={{ duration: 0.2, delay: index * 0.02 }}
-      />
-    ));
+    return grid
+      .flat()
+      .map((hasBlock, index) => (
+        <PieceCell
+          key={index}
+          hasBlock={hasBlock}
+          pieceType={piece.type}
+          initial={{ scale: 0 }}
+          animate={{ scale: hasBlock ? 1 : 0 }}
+          transition={{ duration: 0.2, delay: index * 0.02 }}
+        />
+      ));
   };
 
   return (
     <NextPieceContainer>
       <Title>Next</Title>
-      <PieceGrid>
-        {renderGrid()}
-      </PieceGrid>
+      <PieceGrid>{renderGrid()}</PieceGrid>
     </NextPieceContainer>
   );
 };

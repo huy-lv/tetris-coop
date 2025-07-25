@@ -23,6 +23,17 @@ const Board = styled.div`
   border-radius: 4px;
   width: fit-content;
   height: fit-content;
+
+  @media (max-width: 768px) {
+    grid-template-columns: repeat(10, 22px);
+    grid-template-rows: repeat(20, 22px);
+    gap: 0.5px;
+  }
+
+  @media (max-width: 480px) {
+    grid-template-columns: repeat(10, 18px);
+    grid-template-rows: repeat(20, 18px);
+  }
 `;
 
 const Cell = styled(motion.div)<{
@@ -39,6 +50,17 @@ const Cell = styled(motion.div)<{
   background-color: ${(props) => BOARD_COLORS[props.cellValue]};
   border: ${(props) =>
     props.cellValue > 0 ? "1px solid rgba(255, 255, 255, 0.2)" : "none"};
+
+  @media (max-width: 768px) {
+    width: 22px;
+    height: 22px;
+    border-radius: 1px;
+  }
+
+  @media (max-width: 480px) {
+    width: 18px;
+    height: 18px;
+  }
   opacity: ${(props) => (props.isCurrentPlayer ? 1 : 0.7)};
 
   ${(props) =>
