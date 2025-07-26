@@ -1,4 +1,4 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useRef } from "react";
 import styled from "styled-components";
 import { motion } from "framer-motion";
 
@@ -100,18 +100,68 @@ const TouchControls: React.FC<TouchControlsProps> = ({
   onAction,
   isCurrentPlayer,
 }) => {
-  const handleTouchStart = useCallback(
+  // Refs for managing touch repeat intervals
+  const touchIntervals = useRef<Map<string, number>>(new Map());
+  const initialDelayTimers = useRef<Map<string, number>>(new Map());
+
+  // Clear timers for a specific action
+  const clearTouchTimers = useCallback((action: string) => {
+    const intervalId = touchIntervals.current.get(action);
+    const timerId = initialDelayTimers.current.get(action);
+
+    if (intervalId) {
+      clearInterval(intervalId);
+      touchIntervals.current.delete(action);
+    }
+
+    if (timerId) {
+      clearTimeout(timerId);
+      initialDelayTimers.current.delete(action);
+    }
+  }, []);
+
+  // Start touch repeat for movement actions
+  const startTouchRepeat = useCallback(
     (action: string) => {
       if (!isCurrentPlayer) return;
+      
+      // Clear any existing timers for this action
+      clearTouchTimers(action);
+
+      // Send initial action immediately
       onAction(action);
+
+      // Only repeat for movement actions
+      if (action === "MOVE_LEFT" || action === "MOVE_RIGHT" || action === "SOFT_DROP") {
+        // Set up initial delay before repeat starts (150ms)
+        const initialTimer = setTimeout(() => {
+          // Start repeating with faster interval (50ms)
+          const intervalId = setInterval(() => {
+            onAction(action);
+          }, 50);
+
+          touchIntervals.current.set(action, intervalId);
+        }, 150);
+
+        initialDelayTimers.current.set(action, initialTimer);
+      }
     },
-    [onAction, isCurrentPlayer]
+    [onAction, isCurrentPlayer, clearTouchTimers]
   );
 
-  // Prevent default touch behavior to avoid scrolling
-  const handleTouchEvent = useCallback((e: React.TouchEvent) => {
-    e.preventDefault();
-  }, []);
+  const handleTouchStart = useCallback(
+    (action: string) => {
+      startTouchRepeat(action);
+    },
+    [startTouchRepeat]
+  );
+
+  const handleTouchEnd = useCallback(
+    (action: string) => {
+      clearTouchTimers(action);
+    },
+    [clearTouchTimers]
+  );
 
   return (
     <TouchControlsContainer>
@@ -121,7 +171,7 @@ const TouchControls: React.FC<TouchControlsProps> = ({
           <DirectionButton
             variant="primary"
             onTouchStart={() => handleTouchStart("MOVE_UP")}
-            onTouchEnd={handleTouchEvent}
+            onTouchEnd={() => handleTouchEnd("MOVE_UP")}
             disabled={!isCurrentPlayer}
             whileTap={{ scale: 0.9 }}
           >
@@ -133,7 +183,7 @@ const TouchControls: React.FC<TouchControlsProps> = ({
           <DirectionButton
             variant="primary"
             onTouchStart={() => handleTouchStart("MOVE_LEFT")}
-            onTouchEnd={handleTouchEvent}
+            onTouchEnd={() => handleTouchEnd("MOVE_LEFT")}
             disabled={!isCurrentPlayer}
             whileTap={{ scale: 0.9 }}
           >
@@ -142,7 +192,7 @@ const TouchControls: React.FC<TouchControlsProps> = ({
           <DirectionButton
             variant="primary"
             onTouchStart={() => handleTouchStart("SOFT_DROP")}
-            onTouchEnd={handleTouchEvent}
+            onTouchEnd={() => handleTouchEnd("SOFT_DROP")}
             disabled={!isCurrentPlayer}
             whileTap={{ scale: 0.9 }}
           >
@@ -151,7 +201,7 @@ const TouchControls: React.FC<TouchControlsProps> = ({
           <DirectionButton
             variant="primary"
             onTouchStart={() => handleTouchStart("MOVE_RIGHT")}
-            onTouchEnd={handleTouchEvent}
+            onTouchEnd={() => handleTouchEnd("MOVE_RIGHT")}
             disabled={!isCurrentPlayer}
             whileTap={{ scale: 0.9 }}
           >
@@ -163,7 +213,7 @@ const TouchControls: React.FC<TouchControlsProps> = ({
           <ActionButton
             variant="secondary"
             onTouchStart={() => handleTouchStart("ROTATE")}
-            onTouchEnd={handleTouchEvent}
+            onTouchEnd={() => handleTouchEnd("ROTATE")}
             disabled={!isCurrentPlayer}
             whileTap={{ scale: 0.9 }}
           >
@@ -174,7 +224,7 @@ const TouchControls: React.FC<TouchControlsProps> = ({
           <ActionButton
             variant="secondary"
             onTouchStart={() => handleTouchStart("HOLD")}
-            onTouchEnd={handleTouchEvent}
+            onTouchEnd={() => handleTouchEnd("HOLD")}
             disabled={!isCurrentPlayer}
             whileTap={{ scale: 0.9 }}
           >
@@ -185,7 +235,7 @@ const TouchControls: React.FC<TouchControlsProps> = ({
           <ActionButton
             variant="secondary"
             onTouchStart={() => handleTouchStart("HARD_DROP")}
-            onTouchEnd={handleTouchEvent}
+            onTouchEnd={() => handleTouchEnd("HARD_DROP")}
             disabled={!isCurrentPlayer}
             whileTap={{ scale: 0.9 }}
           >

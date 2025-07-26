@@ -58,7 +58,9 @@ const ActionText = styled.span`
 
 const Controls: React.FC = () => {
   // State to hold current controls from localStorage
-  const [currentControls, setCurrentControls] = useState(() => getSavedControls());
+  const [currentControls, setCurrentControls] = useState(() =>
+    getSavedControls()
+  );
 
   // Listen for control updates
   useEffect(() => {
@@ -67,7 +69,11 @@ const Controls: React.FC = () => {
     };
 
     window.addEventListener("tetris-controls-updated", handleControlsUpdate);
-    return () => window.removeEventListener("tetris-controls-updated", handleControlsUpdate);
+    return () =>
+      window.removeEventListener(
+        "tetris-controls-updated",
+        handleControlsUpdate
+      );
   }, []);
 
   return (
