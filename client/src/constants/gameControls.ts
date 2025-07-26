@@ -1,4 +1,4 @@
-export const GAME_CONTROLS = {
+export const DEFAULT_CONTROLS = {
   MOVE_LEFT: "a",
   MOVE_RIGHT: "d",
   SOFT_DROP: "s",
@@ -8,17 +8,27 @@ export const GAME_CONTROLS = {
 } as const;
 
 export const CONTROL_DESCRIPTIONS = {
-  [GAME_CONTROLS.MOVE_LEFT]: "Move Left",
-  [GAME_CONTROLS.MOVE_RIGHT]: "Move Right",
-  [GAME_CONTROLS.SOFT_DROP]: "Soft Drop",
-  [GAME_CONTROLS.ROTATE]: "Rotate",
-  [GAME_CONTROLS.HARD_DROP]: "Hard Drop",
-  [GAME_CONTROLS.HOLD]: "Hold/Swap",
+  [DEFAULT_CONTROLS.MOVE_LEFT]: "Move Left",
+  [DEFAULT_CONTROLS.MOVE_RIGHT]: "Move Right",
+  [DEFAULT_CONTROLS.SOFT_DROP]: "Soft Drop",
+  [DEFAULT_CONTROLS.ROTATE]: "Rotate",
+  [DEFAULT_CONTROLS.HARD_DROP]: "Hard Drop",
+  [DEFAULT_CONTROLS.HOLD]: "Hold/Swap",
+} as const;
+
+// Control name to description mapping for settings UI
+export const CONTROL_NAME_DESCRIPTIONS = {
+  MOVE_LEFT: "Move Left",
+  MOVE_RIGHT: "Move Right",
+  SOFT_DROP: "Soft Drop",
+  ROTATE: "Rotate",
+  HARD_DROP: "Hard Drop",
+  HOLD: "Hold/Swap",
 } as const;
 
 // Actions that should repeat when held down
 export const REPEATABLE_ACTIONS = [
-  GAME_CONTROLS.MOVE_LEFT,
-  GAME_CONTROLS.MOVE_RIGHT,
-  GAME_CONTROLS.SOFT_DROP,
+  DEFAULT_CONTROLS.MOVE_LEFT,
+  DEFAULT_CONTROLS.MOVE_RIGHT,
+  DEFAULT_CONTROLS.SOFT_DROP,
 ] as const;

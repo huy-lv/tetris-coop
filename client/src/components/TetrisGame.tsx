@@ -12,7 +12,8 @@ import HoldPiece from "./HoldPiece";
 import Controls from "./Controls";
 import TouchControls from "./TouchControls";
 import FireballAnimation from "./FireballAnimation";
-import { GAME_CONTROLS, REPEATABLE_ACTIONS } from "../constants/gameControls";
+import SettingsDialog from "./SettingsDialog";
+import { getSavedControls } from "../constants/controlsUtils";
 import { FIREBALL_FLIGHT_MS } from "../constants/animations";
 
 const GameContainer = styled.div`
@@ -189,6 +190,19 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
   const [gameState, setGameState] = useState(room);
   const [showMessage, setShowMessage] = useState<string | null>(null);
   const [isReady, setIsReady] = useState(currentPlayer.isReady);
+  const [showSettings, setShowSettings] = useState(false);
+
+  // Current controls state (loads from localStorage)
+  const [currentControls, setCurrentControls] = useState(() =>
+    getSavedControls()
+  );
+  // Ref to always have fresh controls in event handlers
+  const currentControlsRef = useRef(currentControls);
+
+  // Update ref whenever state changes
+  useEffect(() => {
+    currentControlsRef.current = currentControls;
+  }, [currentControls]);
 
   // Fireball animation state
   const [activeFireballs, setActiveFireballs] = useState<
@@ -249,6 +263,11 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
     );
   }, []);
 
+  // Function to refresh controls from localStorage
+  const refreshControls = useCallback(() => {
+    setCurrentControls(getSavedControls());
+  }, []);
+
   // Update gameState when room prop changes
   useEffect(() => {
     console.log("TetrisGame: Room prop changed", {
@@ -258,6 +277,20 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
     });
     setGameState(room);
   }, [room]);
+
+  // Listen for custom event when controls are updated
+  useEffect(() => {
+    const handleControlsUpdate = () => {
+      refreshControls();
+    };
+
+    window.addEventListener("tetris-controls-updated", handleControlsUpdate);
+    return () =>
+      window.removeEventListener(
+        "tetris-controls-updated",
+        handleControlsUpdate
+      );
+  }, [refreshControls]);
 
   // Check if current player is the room creator (first player)
   const isRoomCreator =
@@ -385,19 +418,23 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
 
       pressedKeys.current.add(key);
 
-      // Check if this is a repeatable action
-      if (
-        REPEATABLE_ACTIONS.includes(key as (typeof REPEATABLE_ACTIONS)[number])
-      ) {
+      // Check if this is a repeatable action (move left, right, or soft drop)
+      const currentControlsValues = currentControlsRef.current;
+      const isRepeatableAction =
+        key === currentControlsValues.MOVE_LEFT ||
+        key === currentControlsValues.MOVE_RIGHT ||
+        key === currentControlsValues.SOFT_DROP;
+
+      if (isRepeatableAction) {
         let actionType: string;
         switch (key) {
-          case GAME_CONTROLS.MOVE_LEFT:
+          case currentControlsRef.current.MOVE_LEFT:
             actionType = "MOVE_LEFT";
             break;
-          case GAME_CONTROLS.MOVE_RIGHT:
+          case currentControlsRef.current.MOVE_RIGHT:
             actionType = "MOVE_RIGHT";
             break;
-          case GAME_CONTROLS.SOFT_DROP:
+          case currentControlsRef.current.SOFT_DROP:
             actionType = "MOVE_DOWN";
             break;
           default:
@@ -408,13 +445,13 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
       } else {
         // Non-repeatable actions
         switch (key) {
-          case GAME_CONTROLS.ROTATE:
+          case currentControlsRef.current.ROTATE:
             sendGameAction("ROTATE");
             break;
-          case GAME_CONTROLS.HARD_DROP:
+          case currentControlsRef.current.HARD_DROP:
             sendGameAction("HARD_DROP");
             break;
-          case GAME_CONTROLS.HOLD:
+          case currentControlsRef.current.HOLD:
             sendGameAction("HOLD");
             break;
           default:
@@ -881,6 +918,33 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
         />
 
         <motion.button
+          onClick={() => setShowSettings(true)}
+          style={{
+            width: "100%",
+            padding: "12px",
+            fontSize: "16px",
+            fontWeight: "bold",
+            border: "none",
+            borderRadius: "8px",
+            background: "linear-gradient(45deg, #4a90e2, #357abd)",
+            color: "white",
+            cursor: "pointer",
+            marginTop: "20px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "8px",
+          }}
+          whileHover={{
+            scale: 1.05,
+            background: "linear-gradient(45deg, #357abd, #2e6da4)",
+          }}
+          whileTap={{ scale: 0.95 }}
+        >
+          ⚙️ Settings
+        </motion.button>
+
+        <motion.button
           onClick={handleLeaveRoom}
           style={{
             width: "100%",
@@ -892,7 +956,7 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
             background: "#666",
             color: "white",
             cursor: "pointer",
-            marginTop: "20px",
+            marginTop: "10px",
           }}
           whileHover={{ scale: 1.05, background: "#777" }}
           whileTap={{ scale: 0.95 }}
@@ -928,6 +992,12 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
           onComplete={() => handleFireballComplete(fireball.id)}
         />
       ))}
+
+      {/* Settings Dialog */}
+      <SettingsDialog
+        isOpen={showSettings}
+        onClose={() => setShowSettings(false)}
+      />
     </GameContainer>
   );
 };

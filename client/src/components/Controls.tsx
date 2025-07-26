@@ -1,6 +1,10 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import styled from "styled-components";
-import { GAME_CONTROLS, CONTROL_DESCRIPTIONS } from "../constants/gameControls";
+import {
+  DEFAULT_CONTROLS,
+  CONTROL_DESCRIPTIONS,
+} from "../constants/gameControls";
+import { getSavedControls } from "../constants/controlsUtils";
 
 const ControlsContainer = styled.div`
   background: rgba(255, 255, 255, 0.1);
@@ -53,36 +57,51 @@ const ActionText = styled.span`
 `;
 
 const Controls: React.FC = () => {
+  // State to hold current controls from localStorage
+  const [currentControls, setCurrentControls] = useState(() => getSavedControls());
+
+  // Listen for control updates
+  useEffect(() => {
+    const handleControlsUpdate = () => {
+      setCurrentControls(getSavedControls());
+    };
+
+    window.addEventListener("tetris-controls-updated", handleControlsUpdate);
+    return () => window.removeEventListener("tetris-controls-updated", handleControlsUpdate);
+  }, []);
+
   return (
     <ControlsContainer>
       <ControlsTitle>🎮 Controls</ControlsTitle>
       <ControlsList>
         <ControlItem>
-          <KeyBadge>{GAME_CONTROLS.MOVE_LEFT.toUpperCase()}</KeyBadge>
+          <KeyBadge>{currentControls.MOVE_LEFT.toUpperCase()}</KeyBadge>
           <ActionText>
-            {CONTROL_DESCRIPTIONS[GAME_CONTROLS.MOVE_LEFT]}
+            {CONTROL_DESCRIPTIONS[DEFAULT_CONTROLS.MOVE_LEFT]}
           </ActionText>
         </ControlItem>
         <ControlItem>
-          <KeyBadge>{GAME_CONTROLS.MOVE_RIGHT.toUpperCase()}</KeyBadge>
+          <KeyBadge>{currentControls.MOVE_RIGHT.toUpperCase()}</KeyBadge>
           <ActionText>
-            {CONTROL_DESCRIPTIONS[GAME_CONTROLS.MOVE_RIGHT]}
+            {CONTROL_DESCRIPTIONS[DEFAULT_CONTROLS.MOVE_RIGHT]}
           </ActionText>
         </ControlItem>
         <ControlItem>
-          <KeyBadge>{GAME_CONTROLS.SOFT_DROP.toUpperCase()}</KeyBadge>
+          <KeyBadge>{currentControls.SOFT_DROP.toUpperCase()}</KeyBadge>
           <ActionText>
-            {CONTROL_DESCRIPTIONS[GAME_CONTROLS.SOFT_DROP]}
+            {CONTROL_DESCRIPTIONS[DEFAULT_CONTROLS.SOFT_DROP]}
           </ActionText>
         </ControlItem>
         <ControlItem>
-          <KeyBadge>{GAME_CONTROLS.ROTATE.toUpperCase()}</KeyBadge>
-          <ActionText>{CONTROL_DESCRIPTIONS[GAME_CONTROLS.ROTATE]}</ActionText>
+          <KeyBadge>{currentControls.ROTATE.toUpperCase()}</KeyBadge>
+          <ActionText>
+            {CONTROL_DESCRIPTIONS[DEFAULT_CONTROLS.ROTATE]}
+          </ActionText>
         </ControlItem>
         <ControlItem>
-          <KeyBadge>{GAME_CONTROLS.HARD_DROP.toUpperCase()}</KeyBadge>
+          <KeyBadge>{currentControls.HARD_DROP.toUpperCase()}</KeyBadge>
           <ActionText>
-            {CONTROL_DESCRIPTIONS[GAME_CONTROLS.HARD_DROP]}
+            {CONTROL_DESCRIPTIONS[DEFAULT_CONTROLS.HARD_DROP]}
           </ActionText>
         </ControlItem>
       </ControlsList>
