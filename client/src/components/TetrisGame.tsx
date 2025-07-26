@@ -13,6 +13,7 @@ import Controls from "./Controls";
 import TouchControls from "./TouchControls";
 import FireballAnimation from "./FireballAnimation";
 import { GAME_CONTROLS, REPEATABLE_ACTIONS } from "../constants/gameControls";
+import { FIREBALL_FLIGHT_MS } from "../constants/animations";
 
 const GameContainer = styled.div`
   position: relative;
@@ -563,14 +564,10 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
         !currentPlayer.isGameOver &&
         gameState.gameState === GameState.PLAYING
       ) {
-        // Show a message about the incoming garbage
-        setShowMessage(`${data.playerName} sent garbage!`);
-        setTimeout(() => setShowMessage(null), 1000);
-
         // Apply the garbage to this player after a delay to sync with animation
         setTimeout(() => {
           socket.emit("apply_garbage");
-        }, 600); // Match faster fireball animation duration
+        }, FIREBALL_FLIGHT_MS); // Use constant for consistent timing
       }
     };
 

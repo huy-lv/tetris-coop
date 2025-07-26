@@ -1,6 +1,11 @@
 import React from "react";
 import styled from "styled-components";
 import { motion, AnimatePresence } from "framer-motion";
+import {
+  FIREBALL_FLIGHT_DURATION,
+  FIREBALL_IMPACT_DURATION,
+  FIREBALL_IMPACT_MS,
+} from "../constants/animations";
 
 const FireballContainer = styled.div`
   position: absolute;
@@ -91,7 +96,7 @@ const FireballAnimation: React.FC<FireballAnimationProps> = ({
   playerName,
 }) => {
   const [showImpact, setShowImpact] = React.useState(false);
-  const duration = 0.6; // Faster animation duration
+  const duration = FIREBALL_FLIGHT_DURATION; // Use the constant
 
   const handleFireballComplete = () => {
     // Show impact effect
@@ -100,7 +105,7 @@ const FireballAnimation: React.FC<FireballAnimationProps> = ({
     setTimeout(() => {
       setShowImpact(false);
       onComplete();
-    }, 300);
+    }, FIREBALL_IMPACT_MS); // Use milliseconds constant
   };
 
   const fireballVariants = {
@@ -152,7 +157,10 @@ const FireballAnimation: React.FC<FireballAnimationProps> = ({
                 left: toPosition.x - 40,
                 top: toPosition.y - 40,
               }}
-              transition={{ duration: 0.3, ease: "easeOut" }}
+              transition={{
+                duration: FIREBALL_IMPACT_DURATION,
+                ease: "easeOut",
+              }}
             />
           )}
 
