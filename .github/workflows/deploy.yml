@@ -1,0 +1,130 @@
+name: Deploy Tetris Game to Ubuntu Server
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+env:
+  DOCKER_IMAGE_NAME: tetris-game
+  CONTAINER_NAME: tetris-app
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: Build Docker image
+      run: |
+        docker build -t ${{ env.DOCKER_IMAGE_NAME }}:latest .
+        
+    - name: Test Docker image
+      run: |
+        # Start container in background
+        docker run -d --name test-container -p 9000:3000 -p 9001:3001 ${{ env.DOCKER_IMAGE_NAME }}:latest
+        
+        # Wait for container to be ready
+        sleep 10
+        
+        # Test health endpoint
+        curl -f http://localhost:9001/health || exit 1
+        
+        # Test client is serving
+        curl -f http://localhost:9000 || exit 1
+        
+        # Cleanup
+        docker stop test-container
+        docker rm test-container
+        
+    - name: Save Docker image
+      run: |
+        docker save ${{ env.DOCKER_IMAGE_NAME }}:latest | gzip > tetris-game.tar.gz
+        
+    - name: Upload Docker image artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: docker-image
+        path: tetris-game.tar.gz
+        retention-days: 1
+
+  deploy:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    
+    steps:
+    - name: Download Docker image artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: docker-image
+        
+    - name: Deploy to Ubuntu Server
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.SERVER_HOST }}
+        username: ${{ secrets.SERVER_USER }}
+        password: ${{ secrets.SERVER_PASSWORD }}
+        port: ${{ secrets.SERVER_PORT || 22 }}
+        script: |
+          # Create deployment directory
+          mkdir -p /opt/tetris-game
+          cd /opt/tetris-game
+          
+          # Stop and remove existing container if running
+          docker stop ${{ env.CONTAINER_NAME }} 2>/dev/null || true
+          docker rm ${{ env.CONTAINER_NAME }} 2>/dev/null || true
+          
+          # Remove old image
+          docker rmi ${{ env.DOCKER_IMAGE_NAME }}:latest 2>/dev/null || true
+          
+    - name: Copy Docker image to server
+      uses: appleboy/scp-action@v0.1.7
+      with:
+        host: ${{ secrets.SERVER_HOST }}
+        username: ${{ secrets.SERVER_USER }}
+        password: ${{ secrets.SERVER_PASSWORD }}
+        port: ${{ secrets.SERVER_PORT || 22 }}
+        source: "tetris-game.tar.gz"
+        target: "/opt/tetris-game/"
+        
+    - name: Load and run Docker container
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.SERVER_HOST }}
+        username: ${{ secrets.SERVER_USER }}
+        password: ${{ secrets.SERVER_PASSWORD }}
+        port: ${{ secrets.SERVER_PORT || 22 }}
+        script: |
+          cd /opt/tetris-game
+          
+          # Load Docker image
+          gunzip -c tetris-game.tar.gz | docker load
+          
+          # Run new container
+          docker run -d \
+            --name ${{ env.CONTAINER_NAME }} \
+            --restart unless-stopped \
+            -p 3000:3000 \
+            -p 3001:3001 \
+            ${{ env.DOCKER_IMAGE_NAME }}:latest
+          
+          # Wait for container to start
+          sleep 10
+          
+          # Verify deployment
+          curl -f http://localhost:3001/health || exit 1
+          
+          # Cleanup old image file
+          rm -f tetris-game.tar.gz
+          
+          echo "✅ Tetris Game deployed successfully!"
+          echo "🌐 Client: http://$(curl -s ifconfig.me):3000"
+          echo "🔌 Server: http://$(curl -s ifconfig.me):3001"

@@ -3,11 +3,17 @@
 .git
 .gitignore
 README.md
+DEPLOYMENT.md
 .env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
+
+# CI/CD
+
+.github
+scripts
 
 # Client
 
