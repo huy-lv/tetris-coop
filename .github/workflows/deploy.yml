@@ -66,7 +66,7 @@ jobs:
       with:
         name: docker-image
         
-    - name: Deploy to Ubuntu Server
+    - name: Prepare server for deployment
       uses: appleboy/ssh-action@v1.0.3
       with:
         host: ${{ secrets.SERVER_HOST }}
@@ -74,8 +74,15 @@ jobs:
         password: ${{ secrets.SERVER_PASSWORD }}
         port: ${{ secrets.SERVER_PORT || 22 }}
         script: |
-          # Create deployment directory
-          mkdir -p /opt/tetris-game
+          # Create deployment directory with proper permissions
+          sudo mkdir -p /opt/tetris-game
+          sudo chown $USER:$USER /opt/tetris-game
+          sudo chmod 755 /opt/tetris-game
+          
+          # Verify directory exists and is writable
+          ls -la /opt/tetris-game
+          test -w /opt/tetris-game || exit 1
+          
           cd /opt/tetris-game
           
           # Stop and remove existing container if running
@@ -94,6 +101,34 @@ jobs:
         port: ${{ secrets.SERVER_PORT || 22 }}
         source: "tetris-game.tar.gz"
         target: "/opt/tetris-game/"
+        debug: true
+        
+    - name: Verify file copy
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.SERVER_HOST }}
+        username: ${{ secrets.SERVER_USER }}
+        password: ${{ secrets.SERVER_PASSWORD }}
+        port: ${{ secrets.SERVER_PORT || 22 }}
+        script: |
+          echo "Checking copied file..."
+          ls -la /opt/tetris-game/
+          
+          # Verify the tar.gz file exists and has content
+          if [ ! -f "/opt/tetris-game/tetris-game.tar.gz" ]; then
+            echo "❌ Docker image file not found!"
+            exit 1
+          fi
+          
+          file_size=$(stat -c%s "/opt/tetris-game/tetris-game.tar.gz")
+          echo "📦 Docker image file size: ${file_size} bytes"
+          
+          if [ "$file_size" -lt 1000000 ]; then
+            echo "❌ Docker image file seems too small!"
+            exit 1
+          fi
+          
+          echo "✅ File copy verification successful"
         
     - name: Load and run Docker container
       uses: appleboy/ssh-action@v1.0.3
@@ -105,22 +140,56 @@ jobs:
         script: |
           cd /opt/tetris-game
           
-          # Load Docker image
-          gunzip -c tetris-game.tar.gz | docker load
+          echo "🔄 Loading Docker image..."
+          # Load Docker image with better error handling
+          if ! gunzip -c tetris-game.tar.gz | docker load; then
+            echo "❌ Failed to load Docker image"
+            exit 1
+          fi
           
+          echo "🚀 Starting new container..."
           # Run new container
-          docker run -d \
+          if ! docker run -d \
             --name ${{ env.CONTAINER_NAME }} \
             --restart unless-stopped \
             -p 3000:3000 \
             -p 3001:3001 \
-            ${{ env.DOCKER_IMAGE_NAME }}:latest
+            ${{ env.DOCKER_IMAGE_NAME }}:latest; then
+            echo "❌ Failed to start container"
+            exit 1
+          fi
           
-          # Wait for container to start
-          sleep 10
+          # Wait for container to start with retries
+          echo "⏳ Waiting for container to be ready..."
+          for i in {1..6}; do
+            sleep 5
+            if docker ps | grep -q ${{ env.CONTAINER_NAME }}; then
+              echo "✅ Container is running (attempt $i)"
+              break
+            fi
+            echo "⏳ Container not ready yet (attempt $i/6)"
+            if [ $i -eq 6 ]; then
+              echo "❌ Container failed to start within 30 seconds"
+              docker logs ${{ env.CONTAINER_NAME }}
+              exit 1
+            fi
+          done
           
-          # Verify deployment
-          curl -f http://localhost:3001/health || exit 1
+          # Health check with retries
+          echo "🏥 Performing health check..."
+          for i in {1..6}; do
+            if curl -f http://localhost:3001/health; then
+              echo "✅ Health check passed (attempt $i)"
+              break
+            fi
+            echo "⏳ Health check failed, retrying (attempt $i/6)"
+            sleep 5
+            if [ $i -eq 6 ]; then
+              echo "❌ Health check failed after 6 attempts"
+              docker logs ${{ env.CONTAINER_NAME }}
+              exit 1
+            fi
+          done
           
           # Cleanup old image file
           rm -f tetris-game.tar.gz
@@ -128,3 +197,7 @@ jobs:
           echo "✅ Tetris Game deployed successfully!"
           echo "🌐 Client: http://$(curl -s ifconfig.me):3000"
           echo "🔌 Server: http://$(curl -s ifconfig.me):3001"
+          
+          # Show final container status
+          echo "📊 Container Status:"
+          docker ps --filter name=${{ env.CONTAINER_NAME }}
