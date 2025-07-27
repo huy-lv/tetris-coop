@@ -124,7 +124,7 @@ const TouchControls: React.FC<TouchControlsProps> = ({
   const startTouchRepeat = useCallback(
     (action: string) => {
       if (!isCurrentPlayer) return;
-      
+
       // Clear any existing timers for this action
       clearTouchTimers(action);
 
@@ -132,7 +132,11 @@ const TouchControls: React.FC<TouchControlsProps> = ({
       onAction(action);
 
       // Only repeat for movement actions
-      if (action === "MOVE_LEFT" || action === "MOVE_RIGHT" || action === "SOFT_DROP") {
+      if (
+        action === "MOVE_LEFT" ||
+        action === "MOVE_RIGHT" ||
+        action === "SOFT_DROP"
+      ) {
         // Set up initial delay before repeat starts (150ms)
         const initialTimer = setTimeout(() => {
           // Start repeating with faster interval (50ms)

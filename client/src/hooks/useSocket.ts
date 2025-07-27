@@ -7,7 +7,30 @@ type SocketType = Socket<ServerToClientEvents, ClientToServerEvents>;
 // Global socket instance to persist across component unmounts
 let globalSocket: SocketType | null = null;
 
-export const useSocket = (serverUrl: string = "http://192.168.2.76:3001") => {
+// Get server URL based on environment
+const getServerUrl = () => {
+  // Use environment variable if provided
+  if (import.meta.env.VITE_SERVER_URL) {
+    return import.meta.env.VITE_SERVER_URL;
+  }
+
+  // In production, check if running in Docker container (port 9000)
+  if (import.meta.env.PROD) {
+    const isDockerContainer = window.location.port === "9000";
+    if (isDockerContainer) {
+      // In Docker container, server is mapped to port 9001
+      return `${window.location.protocol}//${window.location.hostname}:9001`;
+    } else {
+      // Regular production, server on port 3001
+      return `${window.location.protocol}//${window.location.hostname}:3001`;
+    }
+  }
+
+  // In development, use your local development server
+  return "http://192.168.2.76:3001";
+};
+
+export const useSocket = (serverUrl: string = getServerUrl()) => {
   const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {

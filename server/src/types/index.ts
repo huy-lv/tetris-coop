@@ -129,7 +129,7 @@ export interface SocketData {
 }
 
 // Test mode constant - when true, only spawn O pieces for testing
-export const TestMode = true;
+export const TestMode = false;
 
 // Game speed increase interval - speed increases every 10 seconds for testing
 export const TimeToIncreaseSpeed = 120000; // 10 seconds in milliseconds

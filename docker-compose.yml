@@ -1,0 +1,29 @@
+# Docker Compose for Tetris Game
+version: "3.8"
+
+services:
+  tetris-app:
+    build: .
+    ports:
+      - "${CLIENT_PORT:-3000}:3000" # Client (React)
+      - "${SERVER_PORT:-3001}:3001" # Server (Node.js)
+    environment:
+      - NODE_ENV=production
+      - PORT=${SERVER_PORT:-3001}
+    env_file:
+      - .env
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:3001/health",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s

@@ -1,0 +1,40 @@
+# Tetris Game - Docker Ignore
+
+.git
+.gitignore
+README.md
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Client
+
+client/node_modules
+client/dist
+client/.vite
+client/coverage
+client/.nyc_output
+client/.cache
+
+# Server
+
+server/node_modules
+server/dist
+server/coverage
+server/.nyc_output
+server/logs
+server/\*.log
+
+# Development
+
+.vscode
+.idea
+_.swp
+_.swo
+
+# OS
+
+.DS_Store
+Thumbs.db

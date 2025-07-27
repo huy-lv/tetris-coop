@@ -23,6 +23,33 @@ import {
 
 const app = express();
 const server = createServer(app);
+
+// Get port from environment or default to 3001
+const PORT = process.env.PORT || 3001;
+
+// Configure CORS origins based on environment
+const getCorsOrigins = () => {
+  if (process.env.NODE_ENV === "production") {
+    // In production, allow requests from the same host on different ports
+    return [
+      `http://localhost:3000`,
+      `http://127.0.0.1:3000`,
+      `http://localhost:9000`, // Docker client port
+      `http://127.0.0.1:9000`,
+    ];
+  }
+  // In development, allow common development ports
+  return [
+    "http://localhost:5173",
+    "http://localhost:5174",
+    "http://localhost:3000",
+    "http://localhost:9000", // Docker client port
+    "http://192.168.2.76:5173", // Your local IP
+    "http://192.168.2.76:3000",
+    "http://192.168.2.76:9000",
+  ];
+};
+
 const io = new Server<
   ClientToServerEvents,
   ServerToClientEvents,
@@ -30,7 +57,7 @@ const io = new Server<
   SocketData
 >(server, {
   cors: {
-    origin: ["http://localhost:5173", "http://localhost:5174"], // Vite dev server
+    origin: getCorsOrigins(),
     methods: ["GET", "POST"],
     credentials: true,
   },
@@ -49,11 +76,20 @@ const io = new Server<
 
 app.use(
   cors({
-    origin: ["http://localhost:5173", "http://localhost:5174"],
+    origin: getCorsOrigins(),
   })
 );
 
 app.use(express.json());
+
+// Health check endpoint for Docker
+app.get("/health", (req, res) => {
+  res.status(200).json({
+    status: "healthy",
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+  });
+});
 
 const roomManager = new RoomManager();
 const gameLoops = new Map<string, NodeJS.Timeout>();
@@ -695,8 +731,6 @@ function startGameLoop(roomId: string) {
 setInterval(() => {
   roomManager.cleanupOldRooms(24);
 }, 60 * 60 * 1000);
-
-const PORT = process.env.PORT || 3001;
 
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
