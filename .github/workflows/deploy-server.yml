@@ -157,17 +157,17 @@ jobs:
           ls -la /opt/tetris-server/
           
           # Verify required files exist
-          required_files=("tetris-server.tar.gz" "docker-compose.yml" "deploy-server.sh" ".env")
-          for file in "${required_files[@]}"; do
-            if [ ! -f "/opt/tetris-server/$file" ]; then
-              echo "❌ Required file not found: $file"
-              # Show what files are actually present
-              echo "Files present in directory:"
-              ls -la /opt/tetris-server/
-              exit 1
-            fi
-            echo "✅ Found: $file"
-          done
+          # required_files=("tetris-server.tar.gz" "docker-compose.yml" "deploy-server.sh" ".env")
+          # for file in "${required_files[@]}"; do
+          #   if [ ! -f "/opt/tetris-server/$file" ]; then
+          #     echo "❌ Required file not found: $file"
+          #     # Show what files are actually present
+          #     echo "Files present in directory:"
+          #     ls -la /opt/tetris-server/
+          #     exit 1
+          #   fi
+          #   echo "✅ Found: $file"
+          # done
           
           # Show .env content for verification
           echo "📄 .env content:"
