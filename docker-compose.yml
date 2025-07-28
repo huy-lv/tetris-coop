@@ -3,9 +3,7 @@ version: "3.8"
 
 services:
   tetris-server:
-    build:
-      context: .
-      dockerfile: Dockerfile.server
+    build: .
     ports:
       - "${SERVER_PORT:-3001}:3001" # Server (Node.js Socket.IO)
     environment:

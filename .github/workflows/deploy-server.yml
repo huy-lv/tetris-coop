@@ -43,13 +43,16 @@ jobs:
         # Wait for container to be ready
         sleep 15
         
-        # Test health endpoint
-        curl -f http://localhost:3001/health || exit 1
+        # Test health endpoint (this should work)
+        echo "Testing health endpoint..."
+        curl -f http://localhost:3001/health
         
-        # Test Socket.IO endpoint
-        curl -f http://localhost:3001/socket.io/ || exit 1
+        # Test Socket.IO info endpoint (GET request should work)
+        echo "Testing Socket.IO info endpoint..."
+        curl -f http://localhost:3001/socket.io/?EIO=4\&transport=polling
         
         # Show container logs for debugging
+        echo "Container logs:"
         docker logs test-server
         
         # Cleanup
@@ -67,16 +70,24 @@ jobs:
         cp tetris-server.tar.gz deployment/
         cp docker-compose.yml deployment/
         cp .env.server.example deployment/.env.example
+        cp nginx-server.conf deployment/ 2>/dev/null || echo "nginx-server.conf not found, skipping"
+        cp setup-server-nginx.sh deployment/ 2>/dev/null || echo "setup-server-nginx.sh not found, skipping"
         
         # Create simple deployment script  
         echo '#!/bin/bash' > deployment/deploy-server.sh
         echo 'set -e' >> deployment/deploy-server.sh
         echo 'echo "🚀 Deploying Tetris Server..."' >> deployment/deploy-server.sh
+        echo 'echo "📦 Loading Docker image..."' >> deployment/deploy-server.sh
         echo 'gunzip -c tetris-server.tar.gz | docker load' >> deployment/deploy-server.sh
+        echo 'echo "🛑 Stopping existing container..."' >> deployment/deploy-server.sh
         echo 'docker-compose down || true' >> deployment/deploy-server.sh
+        echo 'echo "▶️ Starting new container..."' >> deployment/deploy-server.sh
         echo 'docker-compose up -d' >> deployment/deploy-server.sh
-        echo 'sleep 10' >> deployment/deploy-server.sh
+        echo 'echo "⏳ Waiting for container to be ready..."' >> deployment/deploy-server.sh
+        echo 'sleep 15' >> deployment/deploy-server.sh
+        echo 'echo "🏥 Testing health endpoint..."' >> deployment/deploy-server.sh
         echo 'curl -f http://localhost:3001/health' >> deployment/deploy-server.sh
+        echo 'echo "✅ Deployment successful!"' >> deployment/deploy-server.sh
         echo 'rm -f tetris-server.tar.gz' >> deployment/deploy-server.sh
         
         chmod +x deployment/deploy-server.sh
@@ -142,7 +153,7 @@ jobs:
           echo "Checking copied files..."
           ls -la /opt/tetris-server/
           
-          # Verify all required files exist
+          # Verify required files exist
           required_files=("tetris-server.tar.gz" "docker-compose.yml" "deploy-server.sh" ".env.example")
           for file in "${required_files[@]}"; do
             if [ ! -f "/opt/tetris-server/$file" ]; then
@@ -150,6 +161,16 @@ jobs:
               exit 1
             fi
             echo "✅ Found: $file"
+          done
+          
+          # Check optional files
+          optional_files=("nginx-server.conf" "setup-server-nginx.sh")
+          for file in "${optional_files[@]}"; do
+            if [ -f "/opt/tetris-server/$file" ]; then
+              echo "✅ Found optional file: $file"
+            else
+              echo "ℹ️ Optional file not found: $file"
+            fi
           done
           
           # Verify the tar.gz file has content
@@ -161,7 +182,7 @@ jobs:
             exit 1
           fi
           
-          echo "✅ All files copied successfully"
+          echo "✅ All required files copied successfully"
         
     - name: Deploy Tetris Server
       uses: appleboy/ssh-action@v1.0.3
