@@ -60,18 +60,38 @@ jobs:
         cp docker-compose.yml deployment/
         
         # Copy .env example file (try multiple sources)
+        echo "🔍 Looking for .env files..."
+        ls -la | grep "\.env" || echo "No .env files found in root"
+        
         if [ -f ".env.server.example" ]; then
-          cp .env.server.example deployment/.env.example
-          echo "✅ Copied .env.server.example as .env.example"
+          cp .env.server.example deployment/.env
+          echo "✅ Copied .env.server.example as .env"
         elif [ -f ".env.example" ]; then
-          cp .env.example deployment/.env.example
-          echo "✅ Copied .env.example"
+          cp .env.example deployment/.env
+          echo "✅ Copied .env.example as .env"
         else
-          # Create a basic .env.example if none exists
-          echo "NODE_ENV=production" > deployment/.env.example
-          echo "SERVER_PORT=3001" >> deployment/.env.example
-          echo "CORS_ORIGIN=*" >> deployment/.env.example
-          echo "✅ Created basic .env.example"
+          # Create a basic .env if none exists
+          echo "📝 Creating basic .env..."
+          echo "NODE_ENV=production" > deployment/.env
+          echo "SERVER_PORT=3001" >> deployment/.env
+          echo "CORS_ORIGIN=*" >> deployment/.env
+          echo "SOCKET_PING_TIMEOUT=60000" >> deployment/.env
+          echo "SOCKET_PING_INTERVAL=25000" >> deployment/.env
+          echo "MAX_ROOMS=100" >> deployment/.env
+          echo "MAX_PLAYERS_PER_ROOM=4" >> deployment/.env
+          echo "LOG_LEVEL=info" >> deployment/.env
+          echo "HEALTH_CHECK_ENABLED=true" >> deployment/.env
+          echo "✅ Created basic .env"
+        fi
+        
+        # Verify .env was created/copied
+        if [ -f "deployment/.env" ]; then
+          echo "✅ .env exists in deployment folder"
+          echo "📄 Content preview:"
+          head -3 deployment/.env
+        else
+          echo "❌ Failed to create .env"
+          exit 1
         fi
         
         # Copy optional nginx files
@@ -79,6 +99,7 @@ jobs:
         cp setup-server-nginx.sh deployment/ 2>/dev/null || echo "ℹ️ setup-server-nginx.sh not found, skipping"
         
         # Create simple deployment script  
+        echo "� Creating deployment script..."
         echo '#!/bin/bash' > deployment/deploy-server.sh
         echo 'set -e' >> deployment/deploy-server.sh
         echo 'echo "🚀 Deploying Tetris Server..."' >> deployment/deploy-server.sh
@@ -96,6 +117,11 @@ jobs:
         echo 'rm -f tetris-server.tar.gz' >> deployment/deploy-server.sh
         
         chmod +x deployment/deploy-server.sh
+        
+        # Final verification
+        echo "🔍 Final deployment folder contents:"
+        ls -la deployment/
+        echo "✅ Deployment package ready"
         
     - name: Upload deployment artifacts
       uses: actions/upload-artifact@v4
@@ -159,7 +185,7 @@ jobs:
           ls -la /opt/tetris-server/
           
           # Verify required files exist
-          required_files=("tetris-server.tar.gz" "docker-compose.yml" "deploy-server.sh" ".env.example")
+          required_files=("tetris-server.tar.gz" "docker-compose.yml" "deploy-server.sh" ".env")
           for file in "${required_files[@]}"; do
             if [ ! -f "/opt/tetris-server/$file" ]; then
               echo "❌ Required file not found: $file"
@@ -171,9 +197,9 @@ jobs:
             echo "✅ Found: $file"
           done
           
-          # Show .env.example content for verification
-          echo "📄 .env.example content:"
-          head -3 /opt/tetris-server/.env.example
+          # Show .env content for verification
+          echo "📄 .env content:"
+          head -3 /opt/tetris-server/.env
           
           # Check optional files
           optional_files=("nginx-server.conf" "setup-server-nginx.sh")
@@ -206,11 +232,14 @@ jobs:
         script: |
           cd /opt/tetris-server
           
-          # Create .env if it doesn't exist
-          if [ ! -f ".env" ]; then
-            echo "📝 Creating .env file from example..."
-            cp .env.example .env
-            echo "⚠️  Please update .env file with your configuration!"
+          # Verify .env file exists
+          if [ -f ".env" ]; then
+            echo "✅ .env file is ready"
+            echo "📄 Current .env content:"
+            cat .env
+          else
+            echo "❌ .env file not found!"
+            exit 1
           fi
           
           # Run deployment script
