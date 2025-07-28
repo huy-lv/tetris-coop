@@ -1,15 +1,17 @@
-# Docker Compose for Tetris Game
+# Docker Compose for Tetris Server Only
 version: "3.8"
 
 services:
-  tetris-app:
-    build: .
+  tetris-server:
+    build:
+      context: .
+      dockerfile: Dockerfile.server
     ports:
-      - "${CLIENT_PORT:-3000}:3000" # Client (React)
-      - "${SERVER_PORT:-3001}:3001" # Server (Node.js)
+      - "${SERVER_PORT:-3001}:3001" # Server (Node.js Socket.IO)
     environment:
       - NODE_ENV=production
       - PORT=${SERVER_PORT:-3001}
+      - CORS_ORIGIN=${CORS_ORIGIN:-*}
     env_file:
       - .env
     restart: unless-stopped
@@ -27,3 +29,5 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    volumes:
+      - ./logs:/app/logs # Optional: mount logs directory

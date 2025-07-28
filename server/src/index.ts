@@ -29,13 +29,23 @@ const PORT = process.env.PORT || 3001;
 
 // Configure CORS origins based on environment
 const getCorsOrigins = () => {
+  // Use CORS_ORIGIN environment variable if provided
+  if (process.env.CORS_ORIGIN) {
+    const origins = process.env.CORS_ORIGIN.split(',').map(origin => origin.trim());
+    console.log('🌐 Using configured CORS origins:', origins);
+    return origins;
+  }
+
   if (process.env.NODE_ENV === "production") {
-    // In production, allow requests from the same host on different ports
+    // In production, allow requests from common production patterns
     return [
       `http://localhost:3000`,
       `http://127.0.0.1:3000`,
       `http://localhost:9000`, // Docker client port
       `http://127.0.0.1:9000`,
+      // Add your frontend domain
+      `https://tetris.huytrang.id.vn`,
+      `https://huytrang.id.vn`,
     ];
   }
   // In development, allow common development ports
