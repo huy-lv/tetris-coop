@@ -3,17 +3,6 @@ name: Deploy Tetris Server to Ubuntu
 on:
   push:
     branches: [ main, master ]
-    paths:
-      - 'server/**'
-      - 'Dockerfile'
-      - 'docker-compose.yml'
-      - '.github/workflows/deploy-server.yml'
-  pull_request:
-    branches: [ main, master ]
-    paths:
-      - 'server/**'
-      - 'Dockerfile'
-      - 'docker-compose.yml'
   workflow_dispatch:
 
 env:
@@ -69,9 +58,25 @@ jobs:
         mkdir -p deployment
         cp tetris-server.tar.gz deployment/
         cp docker-compose.yml deployment/
-        cp .env.server.example deployment/.env.example
-        cp nginx-server.conf deployment/ 2>/dev/null || echo "nginx-server.conf not found, skipping"
-        cp setup-server-nginx.sh deployment/ 2>/dev/null || echo "setup-server-nginx.sh not found, skipping"
+        
+        # Copy .env example file (try multiple sources)
+        if [ -f ".env.server.example" ]; then
+          cp .env.server.example deployment/.env.example
+          echo "✅ Copied .env.server.example as .env.example"
+        elif [ -f ".env.example" ]; then
+          cp .env.example deployment/.env.example
+          echo "✅ Copied .env.example"
+        else
+          # Create a basic .env.example if none exists
+          echo "NODE_ENV=production" > deployment/.env.example
+          echo "SERVER_PORT=3001" >> deployment/.env.example
+          echo "CORS_ORIGIN=*" >> deployment/.env.example
+          echo "✅ Created basic .env.example"
+        fi
+        
+        # Copy optional nginx files
+        cp nginx-server.conf deployment/ 2>/dev/null || echo "ℹ️ nginx-server.conf not found, skipping"
+        cp setup-server-nginx.sh deployment/ 2>/dev/null || echo "ℹ️ setup-server-nginx.sh not found, skipping"
         
         # Create simple deployment script  
         echo '#!/bin/bash' > deployment/deploy-server.sh
@@ -158,10 +163,17 @@ jobs:
           for file in "${required_files[@]}"; do
             if [ ! -f "/opt/tetris-server/$file" ]; then
               echo "❌ Required file not found: $file"
+              # Show what files are actually present
+              echo "Files present in directory:"
+              ls -la /opt/tetris-server/
               exit 1
             fi
             echo "✅ Found: $file"
           done
+          
+          # Show .env.example content for verification
+          echo "📄 .env.example content:"
+          head -3 /opt/tetris-server/.env.example
           
           # Check optional files
           optional_files=("nginx-server.conf" "setup-server-nginx.sh")
