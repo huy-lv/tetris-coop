@@ -59,30 +59,7 @@ jobs:
         cp tetris-server.tar.gz deployment/
         cp docker-compose.yml deployment/
         
-        # Copy .env example file (try multiple sources)
-        echo "🔍 Looking for .env files..."
-        ls -la | grep "\.env" || echo "No .env files found in root"
-        
-        if [ -f ".env.server.example" ]; then
-          cp .env.server.example deployment/.env
-          echo "✅ Copied .env.server.example as .env"
-        elif [ -f ".env.example" ]; then
-          cp .env.example deployment/.env
-          echo "✅ Copied .env.example as .env"
-        else
-          # Create a basic .env if none exists
-          echo "📝 Creating basic .env..."
-          echo "NODE_ENV=production" > deployment/.env
-          echo "SERVER_PORT=3001" >> deployment/.env
-          echo "CORS_ORIGIN=*" >> deployment/.env
-          echo "SOCKET_PING_TIMEOUT=60000" >> deployment/.env
-          echo "SOCKET_PING_INTERVAL=25000" >> deployment/.env
-          echo "MAX_ROOMS=100" >> deployment/.env
-          echo "MAX_PLAYERS_PER_ROOM=4" >> deployment/.env
-          echo "LOG_LEVEL=info" >> deployment/.env
-          echo "HEALTH_CHECK_ENABLED=true" >> deployment/.env
-          echo "✅ Created basic .env"
-        fi
+        cp .env deployment/.env
         
         # Verify .env was created/copied
         if [ -f "deployment/.env" ]; then
@@ -93,10 +70,6 @@ jobs:
           echo "❌ Failed to create .env"
           exit 1
         fi
-        
-        # Copy optional nginx files
-        cp nginx-server.conf deployment/ 2>/dev/null || echo "ℹ️ nginx-server.conf not found, skipping"
-        cp setup-server-nginx.sh deployment/ 2>/dev/null || echo "ℹ️ setup-server-nginx.sh not found, skipping"
         
         # Create simple deployment script  
         echo "� Creating deployment script..."
@@ -133,7 +106,6 @@ jobs:
   deploy:
     needs: build-and-test
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
     
     steps:
     - name: Download deployment artifacts
