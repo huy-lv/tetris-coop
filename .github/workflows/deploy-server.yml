@@ -204,15 +204,15 @@ jobs:
         script: |
           cd /opt/tetris-server
           
-          # Verify .env file exists
-          if [ -f ".env" ]; then
-            echo "✅ .env file is ready"
-            echo "📄 Current .env content:"
-            cat .env
-          else
-            echo "❌ .env file not found!"
-            exit 1
-          fi
+          # # Verify .env file exists
+          # if [ -f ".env" ]; then
+          #   echo "✅ .env file is ready"
+          #   echo "📄 Current .env content:"
+          #   cat .env
+          # else
+          #   echo "❌ .env file not found!"
+          #   exit 1
+          # fi
           
           # Run deployment script
           chmod +x deploy-server.sh
