@@ -5,14 +5,14 @@ on:
     branches: [ main, master ]
     paths:
       - 'server/**'
-      - 'Dockerfile.server'
+      - 'Dockerfile'
       - 'docker-compose.yml'
       - '.github/workflows/deploy-server.yml'
   pull_request:
     branches: [ main, master ]
     paths:
       - 'server/**'
-      - 'Dockerfile.server'
+      - 'Dockerfile'
       - 'docker-compose.yml'
   workflow_dispatch:
 
@@ -33,7 +33,7 @@ jobs:
       
     - name: Build Docker image
       run: |
-        docker build -f Dockerfile.server -t ${{ env.DOCKER_IMAGE_NAME }}:latest .
+        docker build -t ${{ env.DOCKER_IMAGE_NAME }}:latest .
         
     - name: Test Docker image
       run: |
