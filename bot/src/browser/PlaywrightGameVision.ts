@@ -107,11 +107,11 @@ export class PlaywrightGameVision {
 
   async getCurrentPiece(): Promise<PieceType> {
     try {
-      // Get game board data first
-      const gameBoardData = await this.page.evaluate(() => {
-        console.log("=== GAME BOARD DOM ANALYSIS ===");
+      // Get ghost piece data from game board
+      const ghostPieceData = await this.page.evaluate(() => {
+        console.log("=== GHOST PIECE DETECTION ===");
 
-        // Method 1: Analyze game board DOM structure
+        // Find the game board
         const gameBoard = document.querySelector('[data-testid="game-board"]');
         if (!gameBoard) {
           console.log('Game board with data-testid="game-board" not found');
@@ -124,122 +124,101 @@ export class PlaywrightGameVision {
         const cellDivs = gameBoard.querySelectorAll("div");
         console.log(`Found ${cellDivs.length} cell divs in game board`);
 
-        // Analyze each cell for colors and positions
-        const coloredCells: Array<{
+        // Look specifically for ghost piece cells (rgba(128, 128, 128))
+        const ghostCells: Array<{
           index: number;
           row: number;
           col: number;
           color: string;
         }> = [];
 
-        // Assuming 10 columns (standard Tetris)
+        // Game board dimensions: 10 columns x 20 rows
         const BOARD_WIDTH = 10;
+        const BOARD_HEIGHT = 20;
 
         cellDivs.forEach((cell, index) => {
           const style = window.getComputedStyle(cell);
           const bgColor = style.backgroundColor;
 
-          // Check for colored cells (not transparent/default)
+          // Look specifically for ghost piece color: rgba(128, 128, 128) with any opacity
           if (
-            bgColor &&
-            bgColor !== "rgba(0, 0, 0, 0)" &&
-            bgColor !== "transparent" &&
-            bgColor !== "rgb(255, 255, 255)" &&
-            bgColor !== "rgb(0, 0, 0)" &&
-            bgColor !== "rgba(255, 255, 255, 1)" &&
-            bgColor !== "rgba(0, 0, 0, 1)"
+            bgColor === "rgba(128, 128, 128, 0.6)" ||
+            bgColor === "rgb(128, 128, 128)" ||
+            bgColor === "rgba(128, 128, 128, 1)" ||
+            bgColor.includes("128, 128, 128")
           ) {
             const row = Math.floor(index / BOARD_WIDTH);
             const col = index % BOARD_WIDTH;
 
-            coloredCells.push({
-              index,
-              row,
-              col,
-              color: bgColor,
-            });
+            // Make sure it's within valid board bounds
+            if (
+              row >= 0 &&
+              row < BOARD_HEIGHT &&
+              col >= 0 &&
+              col < BOARD_WIDTH
+            ) {
+              ghostCells.push({
+                index,
+                row,
+                col,
+                color: bgColor,
+              });
+            }
           }
         });
 
-        console.log(`Found ${coloredCells.length} colored cells`);
+        console.log(`Found ${ghostCells.length} ghost piece cells`);
 
-        if (coloredCells.length > 0) {
-          // Log first few colored cells for debugging
-          coloredCells.slice(0, 5).forEach((cell, i) => {
+        if (ghostCells.length > 0) {
+          // Log ghost piece cells for debugging
+          ghostCells.forEach((cell, i) => {
             console.log(
-              `Colored cell ${i}: row=${cell.row}, col=${cell.col}, color=${cell.color}`
+              `Ghost cell ${i}: row=${cell.row}, col=${cell.col}, color=${cell.color}`
             );
           });
         }
 
-        return coloredCells;
+        return ghostCells;
       });
 
-      if (gameBoardData && gameBoardData.length > 0) {
-        // Group cells by color to find current piece
-        const colorGroups: {
-          [color: string]: Array<{ row: number; col: number }>;
-        } = {};
+      if (ghostPieceData && ghostPieceData.length > 0) {
+        console.log(`Processing ${ghostPieceData.length} ghost piece cells`);
 
-        gameBoardData.forEach((cell) => {
-          if (!colorGroups[cell.color]) {
-            colorGroups[cell.color] = [];
-          }
-          colorGroups[cell.color].push({ row: cell.row, col: cell.col });
-        });
+        // Convert ghost cells to positions for pattern analysis
+        const ghostPositions = ghostPieceData.map((cell) => ({
+          row: cell.row,
+          col: cell.col,
+        }));
 
-        console.log(
-          "Color groups:",
-          Object.keys(colorGroups).map((color) => ({
-            color,
-            count: colorGroups[color].length,
-            positions: colorGroups[color],
-          }))
-        );
+        console.log("Ghost piece positions:", ghostPositions);
 
-        // Find the current piece (usually the topmost group of 4 cells)
-        for (const [color, positions] of Object.entries(colorGroups)) {
-          if (positions.length >= 2 && positions.length <= 4) {
-            // Check if this could be the active piece (topmost cells)
-            const minRow = Math.min(...positions.map((p) => p.row));
-            const maxRow = Math.max(...positions.map((p) => p.row));
-            const minCol = Math.min(...positions.map((p) => p.col));
-            const maxCol = Math.max(...positions.map((p) => p.col));
-
-            // Current piece is usually at the top (low row numbers)
-            if (minRow <= 3) {
-              // Top area of the board
-              console.log(
-                `Analyzing potential current piece: ${color}, positions:`,
-                positions
-              );
-
-              // Determine piece type from color
-              const pieceFromColor = await this.determinePieceFromColor(color);
-              if (pieceFromColor) {
-                console.log(
-                  `Determined piece type from color: ${pieceFromColor}`
-                );
-                this.logger.info(
-                  `🎯 Current piece detected: ${pieceFromColor}`
-                );
-                return pieceFromColor;
-              }
-
-              // Determine piece type from pattern/shape
-              const pieceFromPattern = this.analyzePiecePattern(positions);
-              if (pieceFromPattern) {
-                console.log(
-                  `Determined piece type from pattern: ${pieceFromPattern}`
-                );
-                this.logger.info(
-                  `🎯 Current piece detected: ${pieceFromPattern}`
-                );
-                return pieceFromPattern;
-              }
-            }
-          }
+        // Determine piece type from ghost piece pattern
+        const pieceFromPattern = this.analyzePiecePattern(ghostPositions);
+        if (pieceFromPattern) {
+          console.log(
+            `✅ Determined piece type from ghost pattern: ${pieceFromPattern}`
+          );
+          this.logger.info(
+            `🎯 Current piece detected from ghost: ${pieceFromPattern}`
+          );
+          return pieceFromPattern;
         }
+
+        // If pattern analysis fails, try to infer from count and arrangement
+        const pieceFromCount = this.inferPieceFromCellCount(ghostPositions);
+        if (pieceFromCount) {
+          console.log(
+            `✅ Determined piece type from ghost count: ${pieceFromCount}`
+          );
+          this.logger.info(
+            `🎯 Current piece detected from ghost count: ${pieceFromCount}`
+          );
+          return pieceFromCount;
+        }
+
+        console.log("❌ Could not determine piece type from ghost piece");
+      } else {
+        console.log("❌ No ghost piece cells found");
       }
 
       // Fallback: Time-based cycling for testing
@@ -248,11 +227,11 @@ export class PlaywrightGameVision {
       const cycleIndex = Math.floor(now / 3000) % pieces.length; // Change every 3 seconds
       const cyclePiece = pieces[cycleIndex];
 
-      console.log(`No piece detected from DOM, using cycling: ${cyclePiece}`);
+      console.log(`No ghost piece detected, using cycling: ${cyclePiece}`);
       this.logger.info(`🎯 Current piece detected (fallback): ${cyclePiece}`);
       return cyclePiece;
     } catch (error) {
-      this.logger.error("Error detecting current piece:", error);
+      this.logger.error("Error detecting current piece from ghost:", error);
       // Return different pieces on error
       const pieces: PieceType[] = ["T", "O", "L", "J", "S", "Z", "I"];
       const randomIndex = Math.floor(Math.random() * pieces.length);
@@ -260,43 +239,7 @@ export class PlaywrightGameVision {
     }
   }
 
-  // Helper method to determine piece type from color
-  private async determinePieceFromColor(
-    color: string
-  ): Promise<PieceType | null> {
-    return this.page.evaluate((color) => {
-      // Standard Tetris color mappings
-      const colorMappings = [
-        { colors: ["0, 255, 255", "cyan"], piece: "I" as const }, // Cyan
-        { colors: ["255, 255, 0", "yellow"], piece: "O" as const }, // Yellow
-        {
-          colors: ["128, 0, 128", "purple", "160, 32, 240"],
-          piece: "T" as const,
-        }, // Purple
-        { colors: ["0, 255, 0", "green", "50, 205, 50"], piece: "S" as const }, // Green
-        { colors: ["255, 0, 0", "red"], piece: "Z" as const }, // Red
-        { colors: ["0, 0, 255", "blue", "30, 144, 255"], piece: "J" as const }, // Blue
-        {
-          colors: ["255, 165, 0", "orange", "255, 140, 0"],
-          piece: "L" as const,
-        }, // Orange
-      ];
-
-      const lowerColor = color.toLowerCase();
-
-      for (const mapping of colorMappings) {
-        for (const colorPattern of mapping.colors) {
-          if (lowerColor.includes(colorPattern.toLowerCase())) {
-            return mapping.piece;
-          }
-        }
-      }
-
-      return null;
-    }, color);
-  }
-
-  // Helper method to analyze piece pattern/shape
+  // Helper method to analyze piece pattern/shape from ghost piece positions
   private analyzePiecePattern(
     positions: Array<{ row: number; col: number }>
   ): PieceType | null {
@@ -318,6 +261,8 @@ export class PlaywrightGameVision {
 
     // Pattern matching for different piece shapes
     const pattern = normalized.map((p) => `${p.row},${p.col}`).join("|");
+
+    console.log(`Ghost piece pattern: ${pattern}`);
 
     // Known piece patterns (there might be rotations)
     const patterns: { [key: string]: PieceType } = {
@@ -356,6 +301,34 @@ export class PlaywrightGameVision {
     };
 
     return patterns[pattern] || null;
+  }
+
+  // Helper method to infer piece type from cell count and rough arrangement
+  private inferPieceFromCellCount(
+    positions: Array<{ row: number; col: number }>
+  ): PieceType | null {
+    const count = positions.length;
+
+    if (count === 4) {
+      // Most pieces have 4 cells
+      const rows = [...new Set(positions.map((p) => p.row))].length;
+      const cols = [...new Set(positions.map((p) => p.col))].length;
+
+      console.log(`Ghost piece spans ${rows} rows and ${cols} columns`);
+
+      // Simple heuristics based on dimensions
+      if (rows === 1 && cols === 4) return "I"; // Horizontal line
+      if (rows === 4 && cols === 1) return "I"; // Vertical line
+      if (rows === 2 && cols === 2) return "O"; // Square
+      if (rows === 2 && cols === 3) return "T"; // T-like shape
+      if (rows === 3 && cols === 2) return "L"; // L or J-like shape
+
+      // Default to T for 4-cell pieces
+      return "T";
+    }
+
+    // For non-standard counts, return null
+    return null;
   }
 
   async getNextPiece(): Promise<string> {

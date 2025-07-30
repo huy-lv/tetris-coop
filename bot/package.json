@@ -4,21 +4,10 @@
   "description": "Browser automation bot for Tetris multiplayer game",
   "main": "dist/index.js",
   "scripts": {
-    "start": "tsx src/index.ts",
     "build": "tsc",
     "dev": "tsx watch src/index.ts",
-    "bot": "tsx src/index.ts",
-    "bot:visible": "tsx src/index.ts test --visible --create-room",
-    "bot:playwright": "tsx src/index.ts test --playwright --create-room",
-    "bot:new-headless": "tsx src/index.ts test --create-room --debug",
-    "bot:watch": "node src/viewer.js",
-    "bot:play": "concurrently \"yarn bot:new-headless\" \"sleep 3 && yarn bot:watch\"",
-    "bot:visible-alt": "node src/start-visible.js",
-    "bot:visible-force": "tsx src/index.ts test --visible --create-room --debug",
-    "bot:headless": "tsx src/index.ts test --headless --create-room",
-    "bot:debug": "tsx src/index.ts test --visible --debug --create-room",
-    "install:deps": "yarn install",
-    "test:connection": "tsx src/index.ts test"
+    "bot:create": "tsx src/index.ts --playwright --create-room --debug",
+    "bot:join": "tsx src/index.ts --playwright --room ROOM_CODE --debug"
   },
   "keywords": [
     "tetris",
