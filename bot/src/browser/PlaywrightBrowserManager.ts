@@ -12,100 +12,54 @@ export class PlaywrightBrowserManager {
 
   constructor(debug = false, headless = false, allowFallback = true) {
     this.logger = new Logger(debug);
-    this.headless = headless;
-    this.allowFallback = allowFallback;
+    // ALWAYS use visible mode - never headless
+    this.headless = false;
+    this.allowFallback = false;
   }
 
   async launch(): Promise<void> {
     this.logger.info("🎭 Launching browser with Playwright...");
 
-    // Check for force visible environment variable
-    const forceVisible = process.env.FORCE_VISIBLE === "true";
-    if (forceVisible) {
-      this.logger.info("🌟 Force visible mode detected from environment");
-      this.headless = false;
-      this.allowFallback = false;
-    }
+    // ALWAYS visible mode - no headless option
+    this.logger.info("🔧 Launching in visible mode with Playwright (ALWAYS)");
+
+    const launchOptions = {
+      headless: false,
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        "--disable-web-security",
+        "--window-size=1000,800", // Set specific window size
+        "--window-position=0,0", // Position at left edge of screen
+      ],
+      // Playwright specific options
+      slowMo: 100, // Add slight delay to see actions
+      timeout: 60000,
+    };
 
     try {
-      let launchOptions: any;
-
-      if (this.headless) {
-        // Headless mode configuration
-        launchOptions = {
-          headless: true,
-          args: [
-            "--no-sandbox",
-            "--disable-setuid-sandbox",
-            "--disable-dev-shm-usage",
-          ],
-        };
-      } else {
-        // Visible mode configuration - Playwright is much more stable!
-        this.logger.info("🔧 Launching in visible mode with Playwright");
-        launchOptions = {
-          headless: false,
-          args: [
-            "--no-sandbox",
-            "--disable-setuid-sandbox",
-            "--disable-dev-shm-usage",
-            "--disable-web-security",
-            "--start-maximized",
-          ],
-          // Playwright specific options
-          slowMo: 100, // Add slight delay to see actions
-          timeout: 60000,
-        };
-      }
-
       this.browser = await chromium.launch(launchOptions);
 
-      // Create context with viewport
+      // Create context with specific viewport for 1000px width
       this.context = await this.browser.newContext({
-        viewport: this.headless ? { width: 1200, height: 800 } : null,
+        viewport: { width: 800, height: 800 },
         userAgent:
           "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
       });
 
       this.page = await this.context.newPage();
 
-      const modeDescription = this.headless ? "headless" : "visible";
       this.logger.success(
-        `✨ Playwright browser launched successfully (${modeDescription} mode)`
+        `✨ Playwright browser launched successfully (visible mode - 1000px width)`
       );
     } catch (error) {
-      this.logger.error("Failed to launch Playwright browser:", error);
-
-      // Only fallback if allowed and not in force visible mode
-      if (!this.headless && this.allowFallback && !forceVisible) {
-        this.logger.info("Retrying with headless mode as fallback...");
-        this.headless = true;
-        this.browser = await chromium.launch({
-          headless: true,
-          args: [
-            "--no-sandbox",
-            "--disable-setuid-sandbox",
-            "--disable-dev-shm-usage",
-          ],
-        });
-
-        this.context = await this.browser.newContext({
-          viewport: { width: 1200, height: 800 },
-          userAgent:
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        });
-
-        this.page = await this.context.newPage();
-        this.logger.success(
-          "Playwright browser launched in headless mode (fallback)"
-        );
-      } else {
-        this.logger.error(
-          "❌ No fallback allowed - Playwright browser launch failed completely."
-        );
-        this.logger.error("💡 Try running with: yarn bot:headless");
-        throw error;
-      }
+      this.logger.error(
+        "❌ Failed to launch Playwright browser in visible mode:",
+        error
+      );
+      this.logger.error("💡 No fallback allowed - must run in visible mode");
+      throw error;
     }
   }
 
@@ -143,7 +97,7 @@ export class PlaywrightBrowserManager {
     this.logger.info("Creating new room...");
 
     // Take screenshot before attempting to create room
-    await this.takeScreenshot("debug-before-create.png");
+    // await this.takeScreenshot("debug-before-create.png");
 
     // Look for buttons
     const buttons = await this.page.$$eval("button", (btns) =>
@@ -194,7 +148,7 @@ export class PlaywrightBrowserManager {
 
     // Wait for room creation and try to get room code
     await sleep(3000);
-    await this.takeScreenshot("debug-after-create.png");
+    // await this.takeScreenshot("debug-after-create.png");
 
     try {
       // Try to find room code in various places
@@ -288,16 +242,21 @@ export class PlaywrightBrowserManager {
   async pressKey(key: string): Promise<void> {
     if (!this.page) throw new Error("Browser not launched");
 
-    // Playwright key mapping
+    // Playwright key mapping for WASD controls
     const keyMap: { [key: string]: string } = {
-      ArrowLeft: "ArrowLeft",
-      ArrowRight: "ArrowRight",
-      ArrowUp: "ArrowUp",
-      ArrowDown: "ArrowDown",
+      ArrowLeft: "KeyA", // Left = A
+      ArrowRight: "KeyD", // Right = D
+      ArrowUp: "KeyN", // Rotate = N
+      ArrowDown: "KeyS", // Soft drop = S
       Space: "Space",
       KeyZ: "KeyZ",
       KeyX: "KeyX",
       KeyC: "KeyC",
+      KeyJ: "KeyJ", // Hard drop = J
+      KeyA: "KeyA", // Direct A
+      KeyD: "KeyD", // Direct D
+      KeyS: "KeyS", // Direct S
+      KeyN: "KeyN", // Direct N
     };
 
     const playwrightKey = keyMap[key] || key;

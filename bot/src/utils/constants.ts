@@ -165,3 +165,12 @@ export const AI_WEIGHTS = {
   holesWeight: -200,
   bumpinessWeight: -50,
 };
+
+export const DEFAULT_CONTROLS = {
+  MOVE_LEFT: "a",
+  MOVE_RIGHT: "d",
+  SOFT_DROP: "s",
+  ROTATE: "n",
+  HARD_DROP: "j",
+  HOLD: "b",
+} as const;

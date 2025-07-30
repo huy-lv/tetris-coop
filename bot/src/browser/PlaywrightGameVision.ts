@@ -87,19 +87,87 @@ export class PlaywrightGameVision {
         .fill(null)
         .map(() => Array(10).fill(0));
 
-      // Try to find and analyze game board
-      const canvas = document.querySelector("canvas");
-      if (canvas) {
-        // For canvas-based games, we'd need to analyze pixels
-        // For now, return empty board with some random filled cells for testing
-        for (let i = 15; i < 20; i++) {
-          for (let j = 0; j < 10; j++) {
-            if (Math.random() > 0.7) {
-              board[i][j] = 1;
-            }
-          }
+      // Find the game board element
+      const gameBoard = document.querySelector('[data-testid="game-board"]');
+      if (!gameBoard) {
+        console.log("🔍 Game board element not found");
+        return board;
+      }
+
+      // Get all child divs (cells)
+      const cells = gameBoard.children;
+      console.log(`📊 Found ${cells.length} cells in game board`);
+
+      // We need to identify what colors represent placed pieces vs empty cells
+      // Let's first analyze all the colors
+      const colorCounts = new Map<string, number>();
+      for (let i = 0; i < cells.length && i < 200; i++) {
+        const cell = cells[i] as HTMLElement;
+        const style = window.getComputedStyle(cell);
+        const backgroundColor = style.backgroundColor;
+        colorCounts.set(
+          backgroundColor,
+          (colorCounts.get(backgroundColor) || 0) + 1
+        );
+      }
+
+      console.log("📊 Background color analysis:");
+      colorCounts.forEach((count, color) => {
+        console.log(`  ${color}: ${count} cells`);
+      });
+
+      // Find the most common color - this is likely the empty cell color
+      let mostCommonColor = "";
+      let maxCount = 0;
+      colorCounts.forEach((count, color) => {
+        if (count > maxCount) {
+          maxCount = count;
+          mostCommonColor = color;
+        }
+      });
+
+      console.log(
+        `📊 Most common background color (likely empty): ${mostCommonColor} (${maxCount} cells)`
+      );
+
+      // Iterate through cells and populate board
+      for (let i = 0; i < cells.length && i < 200; i++) {
+        const cell = cells[i] as HTMLElement;
+        const style = window.getComputedStyle(cell);
+        const backgroundColor = style.backgroundColor;
+
+        // Calculate row and column
+        const row = Math.floor(i / 10);
+        const col = i % 10;
+
+        // Cell is filled if:
+        // 1. It's not the most common color (not empty)
+        // 2. It's not ghost piece color
+        // 3. It's not transparent
+        if (
+          backgroundColor &&
+          backgroundColor !== mostCommonColor &&
+          backgroundColor !== "rgba(128, 128, 128, 1)" &&
+          backgroundColor !== "rgb(128, 128, 128)" &&
+          backgroundColor !== "rgba(0, 0, 0, 0)" &&
+          backgroundColor !== "transparent" &&
+          !backgroundColor.includes("128, 128, 128")
+        ) {
+          board[row][col] = 1;
+          console.log(
+            `📍 Filled cell at row ${row}, col ${col}, color: ${backgroundColor}`
+          );
         }
       }
+
+      // Count filled cells for debugging
+      let filledCount = 0;
+      for (let row = 0; row < 20; row++) {
+        for (let col = 0; col < 10; col++) {
+          if (board[row][col] === 1) filledCount++;
+        }
+      }
+      console.log(`📊 Board has ${filledCount} filled cells`);
 
       return board;
     });

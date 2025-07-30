@@ -2,6 +2,7 @@ import { Page } from "playwright";
 import { Move } from "../utils/types";
 import { Logger, sleep } from "../utils/helpers";
 import { getConfig } from "../config/config";
+import { DEFAULT_CONTROLS } from "../utils/constants";
 
 export class PlaywrightInputController {
   private page: Page;
@@ -19,48 +20,53 @@ export class PlaywrightInputController {
     try {
       this.logger.debug_("Executing move:", JSON.stringify(move));
 
-      // Hard drop first if specified
-      if (move.hardDrop) {
-        await this.sendKey("Space");
+      // Use hold if specified (do this first)
+      if (move.useHold) {
+        await this.sendKey(DEFAULT_CONTROLS.HOLD);
         await sleep(100);
         return;
       }
 
-      // Rotate
-      for (let i = 0; i < move.rotations; i++) {
-        await this.sendKey("ArrowUp");
-        await sleep(50);
+      // Rotate first
+      if (move.rotations > 0) {
+        console.log(`🔄 Executing ${move.rotations} rotations`);
+        for (let i = 0; i < move.rotations; i++) {
+          await this.sendKey(DEFAULT_CONTROLS.ROTATE);
+          await sleep(100); // Increase delay for rotation
+        }
       }
 
       // Move horizontally
       if (move.horizontalMoves > 0) {
+        console.log(`➡️ Moving right ${move.horizontalMoves} times`);
         for (let i = 0; i < move.horizontalMoves; i++) {
-          await this.sendKey("ArrowRight");
-          await sleep(30);
+          await this.sendKey(DEFAULT_CONTROLS.MOVE_RIGHT);
+          await sleep(80); // Increase delay for movement
         }
       } else if (move.horizontalMoves < 0) {
+        console.log(`⬅️ Moving left ${Math.abs(move.horizontalMoves)} times`);
         for (let i = 0; i < Math.abs(move.horizontalMoves); i++) {
-          await this.sendKey("ArrowLeft");
-          await sleep(30);
+          await this.sendKey(DEFAULT_CONTROLS.MOVE_LEFT);
+          await sleep(80); // Increase delay for movement
         }
+      }
+
+      // Small delay before hard drop to ensure all movements are processed
+      if (move.horizontalMoves !== 0 || move.rotations > 0) {
+        console.log(`⏳ Waiting for movements to complete...`);
+        await sleep(150);
       }
 
       // Soft drop if needed
       if (move.softDrop) {
-        await this.sendKey("ArrowDown");
-        await sleep(30);
+        await this.sendKey(DEFAULT_CONTROLS.SOFT_DROP);
+        await sleep(50);
       }
 
-      // Use hold if specified
-      if (move.useHold) {
-        await this.sendKey("KeyC");
-        await sleep(100);
-        return;
-      }
-
-      // Place the piece (hard drop if not already done)
-      if (!move.hardDrop) {
-        await this.sendKey("Space");
+      // Finally, hard drop to place the piece
+      if (move.hardDrop) {
+        console.log(`⬇️ Hard dropping piece`);
+        await this.sendKey(DEFAULT_CONTROLS.HARD_DROP);
         await sleep(100);
       }
     } catch (error) {
@@ -70,8 +76,31 @@ export class PlaywrightInputController {
 
   async sendKey(key: string): Promise<void> {
     try {
-      await this.page.keyboard.press(key);
-      this.logger.debug_("Key pressed:", key);
+      // Map game controls to actual key presses
+      const keyMap: { [key: string]: string } = {
+        [DEFAULT_CONTROLS.MOVE_LEFT]: "KeyA", // a
+        [DEFAULT_CONTROLS.MOVE_RIGHT]: "KeyD", // d
+        [DEFAULT_CONTROLS.SOFT_DROP]: "KeyS", // s
+        [DEFAULT_CONTROLS.ROTATE]: "KeyN", // n
+        [DEFAULT_CONTROLS.HARD_DROP]: "KeyJ", // j
+        [DEFAULT_CONTROLS.HOLD]: "KeyB", // b
+        // Keep old keys for compatibility
+        ArrowLeft: "KeyA",
+        ArrowRight: "KeyD",
+        ArrowUp: "KeyN",
+        ArrowDown: "KeyS",
+        Space: "KeyJ",
+        KeyC: "KeyB",
+      };
+
+      const playwrightKey = keyMap[key] || key;
+      await this.page.keyboard.press(playwrightKey);
+      this.logger.debug_(
+        "Key pressed:",
+        playwrightKey,
+        "(mapped from",
+        key + ")"
+      );
     } catch (error) {
       this.logger.error("Error sending key:", key, error);
     }
@@ -111,5 +140,10 @@ export class PlaywrightInputController {
     } catch (error) {
       this.logger.error("Error waiting and clicking:", selector, error);
     }
+  }
+
+  async hardDrop(): Promise<void> {
+    console.log(`⬇️ Hard dropping piece`);
+    await this.sendKey(DEFAULT_CONTROLS.HARD_DROP);
   }
 }

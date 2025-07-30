@@ -18,10 +18,11 @@ export class PlaywrightTetrisBot {
   constructor(debug = false, headless = false, allowFallback = true) {
     this.debug = debug;
     this.logger = new Logger(debug);
+    // ALWAYS use visible mode (non-headless) with no fallback
     this.browserManager = new PlaywrightBrowserManager(
       debug,
-      headless,
-      allowFallback
+      false, // never headless
+      false // no fallback allowed
     );
     this.strategy = new Strategy(debug);
     this.options = {
@@ -62,11 +63,11 @@ export class PlaywrightTetrisBot {
       // Wait for game to start
       await this.browserManager.waitForGameStart();
 
-      // Initialize game vision and input controller
+      // Initialize game components
       const page = this.browserManager.getPage();
-      if (!page) throw new Error("Browser page not available");
+      if (!page) throw new Error("Page not available");
 
-      this.gameVision = new PlaywrightGameVision(page, this.options.debug);
+      this.gameVision = new PlaywrightGameVision(page);
       this.inputController = new PlaywrightInputController(page, this.debug);
 
       // Start game loop
@@ -99,8 +100,9 @@ export class PlaywrightTetrisBot {
         // Get current game state
         const gameState = await this.gameVision.getCurrentGameState();
 
-        // Check if game is over
-        if (gameState.isGameOver) {
+        // Check if game is over using vision method
+        const isGameOver = await this.gameVision.isGameOver();
+        if (isGameOver) {
           this.logger.info("🎯 Game Over detected!");
           break;
         }
@@ -109,22 +111,17 @@ export class PlaywrightTetrisBot {
           `Game state - Score: ${gameState.score} Lines: ${gameState.lines} Level: ${gameState.level}`
         );
 
-        // Calculate best move using strategy
-        const bestMove = await this.strategy.calculateBestMove(gameState);
+        // TODO: Integrate strategy with PlaywrightGameVision GameState type
+        // const bestMove = await this.strategy.calculateBestMove(gameState);
 
-        this.logger.debug_(
-          `Calculating best move for piece: ${gameState.currentPiece}`
+        this.logger.debug_(`Current piece: ${gameState.currentPiece}`);
+
+        // Temporary: just hard drop for now
+        this.logger.info(
+          `🎯 Current piece: ${gameState.currentPiece}, Score: ${gameState.score}`
         );
-
-        if (bestMove) {
-          this.logger.debug_(`Best move calculated:`, bestMove);
-
-          // Execute the move
-          this.logger.debug_(`Executing move:`, bestMove);
-          await this.inputController.executeMove(bestMove);
-        } else {
-          this.logger.debug_("No valid move found, skipping turn");
-        }
+        await sleep(1000);
+        await this.inputController.hardDrop();
 
         // Wait before next iteration
         await sleep(loopDelay);

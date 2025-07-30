@@ -2,7 +2,7 @@
 
 import { Command } from "commander";
 import { config } from "dotenv";
-import { TetrisBot } from "./bot/TetrisBot";
+import { PlaywrightTetrisBot } from "./bot/PlaywrightTetrisBot";
 import { BotOptions } from "./utils/types";
 import { Logger } from "./utils/helpers";
 
@@ -121,7 +121,11 @@ program
       return;
     }
 
-    const bot = new TetrisBot(botOptions.debug, headlessMode, allowFallback);
+    const bot = new PlaywrightTetrisBot(
+      botOptions.debug,
+      headlessMode,
+      allowFallback
+    );
 
     // Handle graceful shutdown
     const shutdown = async () => {
@@ -219,7 +223,7 @@ program
       allowFallback = false;
     }
 
-    const bot = new TetrisBot(true, headlessMode, allowFallback);
+    const bot = new PlaywrightTetrisBot(true, headlessMode, allowFallback);
 
     try {
       await bot.start(testOptions);
@@ -263,7 +267,7 @@ program
       allowFallback = false;
     }
 
-    const bot = new TetrisBot(false, headlessMode, allowFallback);
+    const bot = new PlaywrightTetrisBot(false, headlessMode, allowFallback);
 
     const shutdown = async () => {
       logger.info("Shutting down autonomous mode...");
