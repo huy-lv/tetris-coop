@@ -57,7 +57,7 @@ jobs:
         # Create deployment package
         mkdir -p deployment
         cp tetris-server.tar.gz deployment/
-        cp docker-compose.yml deployment/
+        # Note: No longer using docker-compose.yml - using direct docker commands
         
         cp .env deployment/.env
         
@@ -79,9 +79,10 @@ jobs:
         echo 'echo "📦 Loading Docker image..."' >> deployment/deploy-server.sh
         echo 'gunzip -c tetris-server.tar.gz | docker load' >> deployment/deploy-server.sh
         echo 'echo "🛑 Stopping existing container..."' >> deployment/deploy-server.sh
-        echo 'docker-compose down || true' >> deployment/deploy-server.sh
+        echo 'docker stop tetris-server || true' >> deployment/deploy-server.sh
+        echo 'docker rm tetris-server || true' >> deployment/deploy-server.sh
         echo 'echo "▶️ Starting new container..."' >> deployment/deploy-server.sh
-        echo 'docker-compose up -d' >> deployment/deploy-server.sh
+        echo 'docker run -d --name tetris-server -p 3001:3001 --env-file .env --restart unless-stopped tetris-server:latest' >> deployment/deploy-server.sh
         echo 'echo "⏳ Waiting for container to be ready..."' >> deployment/deploy-server.sh
         echo 'sleep 15' >> deployment/deploy-server.sh
         echo 'echo "🏥 Testing health endpoint..."' >> deployment/deploy-server.sh
@@ -220,7 +221,7 @@ jobs:
           
           # Show final status
           echo "📊 Container Status:"
-          docker-compose ps
+          docker ps --filter name=tetris-server
           
           echo "🎉 Tetris Server deployment completed!"
           echo "🔌 Server URL: https://tetris-server.huytrang.id.vn"
