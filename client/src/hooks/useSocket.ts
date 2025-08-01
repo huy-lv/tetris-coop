@@ -14,20 +14,13 @@ const getServerUrl = () => {
     return import.meta.env.VITE_SERVER_URL;
   }
 
-  // In production, check if running in Docker container (port 9000)
+  // In production, use your production backend
   if (import.meta.env.PROD) {
-    const isDockerContainer = window.location.port === "9000";
-    if (isDockerContainer) {
-      // In Docker container, server is mapped to port 9001
-      return `${window.location.protocol}//${window.location.hostname}:9001`;
-    } else {
-      // Regular production, server on port 3001
-      return `${window.location.protocol}//${window.location.hostname}:3001`;
-    }
+    return "https://tetris-server.huytrang.id.vn";
   }
 
-  // In development, use your local development server
-  return "http://192.168.2.76:3001";
+  // In development, use localhost
+  return "http://localhost:3001";
 };
 
 export const useSocket = (serverUrl: string = getServerUrl()) => {
