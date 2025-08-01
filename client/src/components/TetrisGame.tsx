@@ -15,6 +15,7 @@ import FireballAnimation from "./FireballAnimation";
 import SettingsDialog from "./SettingsDialog";
 import { getSavedControls } from "../constants/controlsUtils";
 import { FIREBALL_FLIGHT_MS } from "../constants/animations";
+import { movePiece, rotatePiece, hardDrop, holdPiece, executeLineClear } from "../game/tetris";
 
 const GameContainer = styled.div`
   position: relative;
@@ -270,11 +271,6 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
 
   // Update gameState when room prop changes
   useEffect(() => {
-    console.log("TetrisGame: Room prop changed", {
-      roomCode: room.code,
-      playerCount: room.players.length,
-      players: room.players.map((p) => ({ name: p.name, id: p.id })),
-    });
     setGameState(room);
   }, [room]);
 
@@ -297,15 +293,11 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
     gameState.players.length > 0 &&
     gameState.players[0].id === currentPlayer.id;
 
-  console.log("TetrisGame: Render state", {
-    gameStatePlayerCount: gameState.players.length,
-    roomPropPlayerCount: room.players.length,
-    currentPlayerId: currentPlayer.id,
-    isRoomCreator,
-  });
+  // Ref to always have fresh handleGameAction in event handlers
+  const handleGameActionRef = useRef<(actionType: string) => void>();
 
-  // Function to send game action
-  const sendGameAction = useCallback(
+  // Function to handle game actions locally and sync to server
+  const handleGameAction = useCallback(
     (actionType: string) => {
       if (
         !socket ||
@@ -315,44 +307,207 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
         return;
       }
 
-      const action: GameAction = {
-        type: actionType as GameAction["type"],
-        playerId: currentPlayer.id,
-      };
+      // Find current player in game state
+      const playerIndex = gameState.players.findIndex(
+        (p) => p.id === currentPlayer.id
+      );
+      if (playerIndex === -1) return;
 
-      socket.emit("game_action", action);
+      const updatedPlayer = {
+        ...gameState.players[playerIndex],
+        gameBoard: gameState.players[playerIndex].gameBoard.map((row) => [
+          ...row,
+        ]),
+        currentPiece: gameState.players[playerIndex].currentPiece
+          ? {
+              ...gameState.players[playerIndex].currentPiece,
+              shape: gameState.players[playerIndex].currentPiece.shape.map(
+                (row) => [...row]
+              ),
+            }
+          : undefined,
+      };
+      let moved = false;
+      let linesCleared = 0;
+      let clearedRows: number[] = [];
+
+      // Handle action locally
+      switch (actionType) {
+        case "MOVE_LEFT":
+          moved = movePiece(updatedPlayer, "left");
+          break;
+        case "MOVE_RIGHT":
+          moved = movePiece(updatedPlayer, "right");
+          break;
+        case "MOVE_DOWN":
+        case "SOFT_DROP":
+          moved = movePiece(updatedPlayer, "down");
+          if (!moved) {
+            // Piece couldn't move down, lock it
+            const lockResult = hardDrop(updatedPlayer);
+            linesCleared = lockResult.linesCleared;
+            clearedRows = lockResult.clearedRows;
+            if (lockResult.gameOver) {
+              updatedPlayer.isGameOver = true;
+            }
+          }
+          break;
+        case "ROTATE":
+          moved = rotatePiece(updatedPlayer);
+          break;
+        case "HARD_DROP": {
+          const dropResult = hardDrop(updatedPlayer);
+          linesCleared = dropResult.linesCleared;
+          clearedRows = dropResult.clearedRows;
+          if (dropResult.gameOver) {
+            updatedPlayer.isGameOver = true;
+          }
+          moved = true;
+          break;
+        }
+        case "HOLD":
+          moved = holdPiece(updatedPlayer);
+          break;
+        default:
+          return;
+      }
+
+      // Handle line clearing animation
+      if (linesCleared > 0 && clearedRows.length > 0) {
+        // Update local state immediately with piece placed (but lines not cleared yet)
+        const updatedPlayers = [...gameState.players];
+        updatedPlayers[playerIndex] = {
+          ...updatedPlayer,
+          currentPiece: updatedPlayer.currentPiece
+            ? {
+                ...updatedPlayer.currentPiece,
+              }
+            : undefined,
+        };
+
+        setGameState((prev) => ({
+          ...prev,
+          players: updatedPlayers,
+        }));
+
+        // Emit lines_clearing event to start animation
+        socket.emit("lines_clearing", {
+          playerId: currentPlayer.id,
+          clearedRows,
+          dropX: updatedPlayer.currentPiece?.x || 5,
+        });
+
+        // Wait for animation duration, then execute the actual line clear
+        setTimeout(() => {
+          // Execute the line clear to update board and score
+          executeLineClear(updatedPlayer, clearedRows);
+          
+          // Update the game state with cleared lines
+          const finalUpdatedPlayers = [...gameState.players];
+          finalUpdatedPlayers[playerIndex] = {
+            ...updatedPlayer,
+          };
+
+          setGameState((prev) => ({
+            ...prev,
+            players: finalUpdatedPlayers,
+          }));
+
+          // Emit lines_cleared event to end animation
+          socket.emit("lines_cleared", {
+            playerId: currentPlayer.id,
+            clearedRows,
+            dropX: updatedPlayer.currentPiece?.x || 5,
+          });
+
+          // Sync final state to server
+          socket.emit("game_state_sync", {
+            playerId: currentPlayer.id,
+            playerState: finalUpdatedPlayers[playerIndex],
+            linesCleared,
+          });
+        }, 600); // Match the animation duration
+      } else {
+        // Update local state immediately for movement/rotation/drops without line clears
+        if (moved || linesCleared > 0 || actionType === "ROTATE") {
+          const updatedPlayers = [...gameState.players];
+          updatedPlayers[playerIndex] = {
+            ...updatedPlayer,
+            currentPiece: updatedPlayer.currentPiece
+              ? {
+                  ...updatedPlayer.currentPiece,
+                }
+              : undefined,
+          };
+
+          setGameState((prev) => ({
+            ...prev,
+            players: updatedPlayers,
+          }));
+
+          // Sync state to server
+          socket.emit("game_state_sync", {
+            playerId: currentPlayer.id,
+            playerState: updatedPlayers[playerIndex],
+            linesCleared,
+          });
+        }
+      }
     },
-    [socket, gameState.gameState, currentPlayer.id, currentPlayer.isGameOver]
+    [
+      socket,
+      gameState.gameState,
+      gameState.players,
+      currentPlayer.id,
+      currentPlayer.isGameOver,
+    ]
   );
+
+  // Update ref whenever handleGameAction changes
+  useEffect(() => {
+    handleGameActionRef.current = handleGameAction;
+  }, [handleGameAction]);
 
   // Handle touch controls
   const handleAction = useCallback(
     (action: string) => {
       switch (action) {
         case "MOVE_LEFT":
-          sendGameAction("MOVE_LEFT");
+          if (handleGameActionRef.current) {
+            handleGameActionRef.current("MOVE_LEFT");
+          }
           break;
         case "MOVE_RIGHT":
-          sendGameAction("MOVE_RIGHT");
+          if (handleGameActionRef.current) {
+            handleGameActionRef.current("MOVE_RIGHT");
+          }
           break;
         case "SOFT_DROP":
-          sendGameAction("SOFT_DROP");
+          if (handleGameActionRef.current) {
+            handleGameActionRef.current("SOFT_DROP");
+          }
           break;
         case "MOVE_UP":
         case "ROTATE":
-          sendGameAction("ROTATE");
+          if (handleGameActionRef.current) {
+            handleGameActionRef.current("ROTATE");
+          }
           break;
         case "HARD_DROP":
-          sendGameAction("HARD_DROP");
+          if (handleGameActionRef.current) {
+            handleGameActionRef.current("HARD_DROP");
+          }
           break;
         case "HOLD":
-          sendGameAction("HOLD");
+          if (handleGameActionRef.current) {
+            handleGameActionRef.current("HOLD");
+          }
           break;
         default:
           break;
       }
     },
-    [sendGameAction]
+    []
   );
 
   // Clean up intervals and timers
@@ -377,16 +532,25 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
       // Clear any existing timers for this key
       clearKeyTimers(key);
 
+      console.log("Starting key repeat for:", key, actionType);
+
       // Send initial action immediately
-      sendGameAction(actionType);
+      if (handleGameActionRef.current) {
+        handleGameActionRef.current(actionType);
+      }
 
       // Set up initial delay before repeat starts (150ms)
       const initialTimer = setTimeout(() => {
+        console.log("Starting interval for:", key);
         // Start repeating with faster interval (50ms)
         const intervalId = setInterval(() => {
           if (pressedKeys.current.has(key)) {
-            sendGameAction(actionType);
+            console.log("Repeating action:", actionType, "for key:", key);
+            if (handleGameActionRef.current) {
+              handleGameActionRef.current(actionType);
+            }
           } else {
+            console.log("Key no longer pressed, clearing timer for:", key);
             clearKeyTimers(key);
           }
         }, 50);
@@ -396,7 +560,7 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
 
       initialDelayTimers.current.set(key, initialTimer);
     },
-    [sendGameAction, clearKeyTimers]
+    [clearKeyTimers]
   );
 
   const handleKeyDown = useCallback(
@@ -411,13 +575,6 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
 
       const key = event.key.toLowerCase();
 
-      // Only process if key is not already pressed (prevents browser key repeat)
-      if (pressedKeys.current.has(key)) {
-        return;
-      }
-
-      pressedKeys.current.add(key);
-
       // Check if this is a repeatable action (move left, right, or soft drop)
       const currentControlsValues = currentControlsRef.current;
       const isRepeatableAction =
@@ -425,7 +582,24 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
         key === currentControlsValues.MOVE_RIGHT ||
         key === currentControlsValues.SOFT_DROP;
 
+      const isGameKey =
+        isRepeatableAction ||
+        key === currentControlsValues.ROTATE ||
+        key === currentControlsValues.HARD_DROP ||
+        key === currentControlsValues.HOLD;
+
+      // Prevent default for all game keys
+      if (isGameKey) {
+        event.preventDefault();
+      }
+
+      // For repeatable actions, only process if key is not already pressed
       if (isRepeatableAction) {
+        if (pressedKeys.current.has(key)) {
+          return; // Prevent browser key repeat for movement keys
+        }
+        pressedKeys.current.add(key);
+
         let actionType: string;
         switch (key) {
           case currentControlsRef.current.MOVE_LEFT:
@@ -443,20 +617,25 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
         }
         startKeyRepeat(key, actionType);
       } else {
-        // Non-repeatable actions
+        // Non-repeatable actions can be triggered even if other keys are pressed
         switch (key) {
           case currentControlsRef.current.ROTATE:
-            sendGameAction("ROTATE");
+            if (handleGameActionRef.current) {
+              handleGameActionRef.current("ROTATE");
+            }
             break;
           case currentControlsRef.current.HARD_DROP:
-            sendGameAction("HARD_DROP");
+            if (handleGameActionRef.current) {
+              handleGameActionRef.current("HARD_DROP");
+            }
             break;
           case currentControlsRef.current.HOLD:
-            sendGameAction("HOLD");
+            if (handleGameActionRef.current) {
+              handleGameActionRef.current("HOLD");
+            }
             break;
           default:
-            pressedKeys.current.delete(key); // Remove key if not handled
-            return;
+            return; // Ignore unhandled keys
         }
       }
     },
@@ -465,7 +644,6 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
       gameState.gameState,
       currentPlayer.isGameOver,
       startKeyRepeat,
-      sendGameAction,
     ]
   );
 
@@ -476,6 +654,7 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
       if (pressedKeys.current.has(key)) {
         pressedKeys.current.delete(key);
         clearKeyTimers(key);
+        console.log("Key released:", key);
       }
     },
     [clearKeyTimers]
@@ -522,20 +701,6 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
     };
 
     const handleGameStateUpdate = (update: { players: Player[] }) => {
-      console.log("🎮 Game state update received:", {
-        playerCount: update.players.length,
-        players: update.players.map((p) => ({
-          name: p.name,
-          currentPiece: p.currentPiece
-            ? {
-                type: p.currentPiece.type,
-                x: p.currentPiece.x,
-                y: p.currentPiece.y,
-              }
-            : null,
-          isGameOver: p.isGameOver,
-        })),
-      });
       setGameState((prev) => ({
         ...prev,
         players: update.players,
@@ -673,13 +838,6 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
 
   const handleStartGame = () => {
     if (!socket) return;
-    console.log("TetrisGame: Manual start game requested", {
-      roomCode: gameState.code,
-      playerCount: gameState.players.length,
-      gameState: gameState.gameState,
-      isRoomCreator,
-      currentPlayerId: currentPlayer.id,
-    });
     socket.emit("start_game");
   };
 

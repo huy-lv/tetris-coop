@@ -124,6 +124,21 @@ export interface ClientToServerEvents {
   resume_game: () => void;
   apply_garbage: () => void;
   game_action: (action: GameAction) => void;
+  game_state_sync: (data: {
+    playerId: string;
+    playerState: Player;
+    linesCleared: number;
+  }) => void;
+  lines_clearing: (data: {
+    playerId: string;
+    clearedRows: number[];
+    dropX: number;
+  }) => void;
+  lines_cleared: (data: {
+    playerId: string;
+    clearedRows: number[];
+    dropX: number;
+  }) => void;
 }
 
 export const TETROMINO_COLORS: { [key in TetrominoTypeValue]: string } = {

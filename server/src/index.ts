@@ -483,6 +483,57 @@ io.on("connection", (socket) => {
     }
   });
 
+  socket.on("game_state_sync", (data) => {
+    if (socket.data.roomId && socket.data.playerId) {
+      const room = roomManager.getRoom(socket.data.roomId);
+
+      if (!room || room.gameState !== GameState.PLAYING) return;
+
+      const player = room.players.get(socket.data.playerId);
+      if (!player) return;
+
+      // Update player state with the synced data
+      room.players.set(socket.data.playerId, data.playerState);
+
+      // Handle line clears if any
+      if (data.linesCleared > 0) {
+        // Generate garbage for other players
+        const alivePlayers = Array.from(room.players.values()).filter(
+          (p) => !p.isGameOver && p.id !== socket.data.playerId
+        );
+
+        if (alivePlayers.length > 0) {
+          alivePlayers.forEach((targetPlayer) => {
+            for (let i = 0; i < data.linesCleared; i++) {
+              targetPlayer.gameBoard = addGarbageRow(targetPlayer.gameBoard);
+            }
+          });
+        }
+      }
+
+      // Send updated game state to all players
+      io.to(socket.data.roomId).emit("game_state_update", {
+        players: Array.from(room.players.values()),
+      });
+
+      // Check if player lost
+      if (data.playerState.isGameOver) {
+        io.to(socket.data.roomId).emit("player_lost", data.playerId);
+
+        // Check if game should end
+        const alivePlayers = Array.from(room.players.values()).filter(
+          (p) => !p.isGameOver
+        );
+
+        if (alivePlayers.length <= 1) {
+          room.gameState = GameState.FINISHED;
+          const winner = alivePlayers[0];
+          io.to(socket.data.roomId).emit("game_ended", winner?.id);
+        }
+      }
+    }
+  });
+
   socket.on("game_action", (action: GameAction) => {
     if (socket.data.roomId && socket.data.playerId) {
       const room = roomManager.getRoom(socket.data.roomId);
@@ -566,6 +617,21 @@ io.on("connection", (socket) => {
           );
         }
       }
+    }
+  });
+
+  // Handle line clearing animation events
+  socket.on("lines_clearing", (data) => {
+    if (socket.data.roomId) {
+      // Forward the lines_clearing event to all players in the room
+      io.to(socket.data.roomId).emit("lines_clearing", data);
+    }
+  });
+
+  socket.on("lines_cleared", (data) => {
+    if (socket.data.roomId) {
+      // Forward the lines_cleared event to all players in the room
+      io.to(socket.data.roomId).emit("lines_cleared", data);
     }
   });
 
