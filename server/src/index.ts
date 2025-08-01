@@ -31,8 +31,10 @@ const PORT = process.env.PORT || 3001;
 const getCorsOrigins = () => {
   // Use CORS_ORIGIN environment variable if provided
   if (process.env.CORS_ORIGIN) {
-    const origins = process.env.CORS_ORIGIN.split(',').map(origin => origin.trim());
-    console.log('🌐 Using configured CORS origins:', origins);
+    const origins = process.env.CORS_ORIGIN.split(",").map((origin) =>
+      origin.trim()
+    );
+    console.log("🌐 Using configured CORS origins:", origins);
     return origins;
   }
 
@@ -46,6 +48,8 @@ const getCorsOrigins = () => {
       // Add your frontend domain
       `https://tetris.huytrang.id.vn`,
       `https://huytrang.id.vn`,
+      // GitHub Pages domain
+      `https://huy-lv.github.io`,
     ];
   }
   // In development, allow common development ports
