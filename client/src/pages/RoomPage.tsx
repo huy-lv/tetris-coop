@@ -14,7 +14,7 @@ import {
 } from "@mui/material";
 import { HomeRounded, Menu } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
-import { GAME_STATES } from "../constants";
+import { GAME_STATES, ROW_TO_GARBAGE } from "../constants";
 import { useGameLogic } from "../hooks/useGameLogic";
 import { getControlsFromStorage } from "../utils/controlsUtils";
 import GameBoard from "../components/GameBoard";
@@ -179,13 +179,18 @@ const RoomPage: React.FC = () => {
       if (multiBoardRef.current && fireballEffectRef.current) {
         const positions = multiBoardRef.current.getPlayerBoardPositions();
         if (positions.length > 0) {
+          const garbageRows = Math.floor(linesCleared / ROW_TO_GARBAGE);
+          if (garbageRows <= 0) {
+            lastLinesRef.current = currentLines;
+            return;
+          }
           // Only shoot one fireball to the first player
           const firstTarget = positions[0];
           fireballEffectRef.current.shootFireball(
             firstTarget.x,
             firstTarget.y,
             firstTarget.playerId,
-            linesCleared
+            garbageRows
           );
         }
       }

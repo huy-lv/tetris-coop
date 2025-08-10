@@ -7,6 +7,9 @@ export const GAME_CONFIG = {
   LINES_PER_LEVEL: 10,
 } as const;
 
+// Number of cleared rows required to add 1 garbage row to opponent
+export const ROW_TO_GARBAGE = 2 as const;
+
 export const TEST_MODE = false; // Set to true to always spawn O pieces for testing
 
 // Default animation settings - can be overridden by user preferences
