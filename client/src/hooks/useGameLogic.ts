@@ -36,6 +36,7 @@ import {
 import gameService from "../services/gameService";
 import soundService from "../services/soundService";
 import { useNavigationGuard } from "./useNavigationGuard";
+import { toast } from "react-toastify";
 
 const createInitialGameBoard = (): GameBoard => ({
   grid: createEmptyGrid(),
@@ -214,6 +215,13 @@ export const useGameLogic = (settingsOpen: boolean = false) => {
         );
         setRoomPlayers(playerNames);
       }
+
+      if (data.player?.name) {
+        toast.success(`${data.player.name} joined the room`, {
+          position: "top-right",
+          autoClose: 8000,
+        });
+      }
     };
 
     // Setup event listener for player left
@@ -227,6 +235,13 @@ export const useGameLogic = (settingsOpen: boolean = false) => {
           `👥 Updated players list after leave: ${playerNames.join(", ")}`
         );
         setRoomPlayers(playerNames);
+      }
+
+      if (data.playerName) {
+        toast.info(`${data.playerName} left the room`, {
+          position: "top-right",
+          autoClose: 8000,
+        });
       }
     };
 

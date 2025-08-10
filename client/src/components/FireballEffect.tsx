@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useRef } from "react";
 import Fireball from "./Fireball";
 import { ANIMATION_SETTINGS } from "../constants";
+import gameService from "../services/gameService";
 
 interface FireballData {
   id: string;
@@ -42,6 +43,12 @@ const FireballEffect = React.forwardRef<FireballEffectRef, FireballEffectProps>(
         garbageRows: number
       ) => {
         console.log(`🎯 Shooting fireball to: ${targetX}, ${targetY}`);
+
+        // If fireball animation is disabled, send garbage immediately
+        if (!ANIMATION_SETTINGS.ENABLE_FIREBALL) {
+          gameService.sendGarbageRows(targetPlayerId, garbageRows);
+          return;
+        }
 
         // Get game board bottom center as starting point
         const gameBoard =
@@ -89,6 +96,16 @@ const FireballEffect = React.forwardRef<FireballEffectRef, FireballEffectProps>(
         targets: { x: number; y: number; playerId: string }[],
         garbageRows: number
       ) => {
+        // If fireball animation is disabled, send garbage directly without visual effect
+        if (!ANIMATION_SETTINGS.ENABLE_FIREBALL) {
+          targets.forEach((target, index) => {
+            setTimeout(() => {
+              gameService.sendGarbageRows(target.playerId, garbageRows);
+            }, index * 150);
+          });
+          return;
+        }
+
         targets.forEach((target, index) => {
           setTimeout(() => {
             shootFireball(target.x, target.y, target.playerId, garbageRows);
