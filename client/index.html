@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <!-- Fallback in dev; will be replaced by script import so it works in build too -->
+    <link rel="icon" type="image/png" href="/src/assets/logo.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tetris Coop</title>
+    <script type="module">
+        import faviconUrl from '/src/assets/logo.png';
+        const link = document.querySelector('link[rel="icon"]') || document.createElement('link');
+        link.rel = 'icon';
+        link.type = 'image/png';
+        link.href = faviconUrl;
+        if (!link.parentNode) document.head.appendChild(link);
+    </script>
+</head>
+
+<body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+</body>
+
+</html>
