@@ -17,7 +17,8 @@
 
 **📹 Watch Demo:**
 
-https://github.com/huy-lv/tetris-coop/raw/refs/heads/main/demo.mp4
+https://github.com/user-attachments/assets/2b0514ab-b887-4fe5-9757-f024b4eabfcb
+
 
 ## 🌟 Features
 
