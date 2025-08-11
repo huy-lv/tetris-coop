@@ -2,7 +2,7 @@
 
 <div align="center">
   <img src="client/src/assets/logo.png" alt="Tetris Co-op Logo" width="200" height="200">
-  
+
   **A modern multiplayer Tetris game with real-time collaboration and competitive features**
   
   [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -17,10 +17,7 @@
 
 **📹 Watch Demo:**
 
-<video width="640" height="360" controls>
-  <source src="https://github.com/huy-lv/tetris-coop/blob/main/demo.mp4?raw=true" type="video/mp4">
-  Your browser does not support the video tag.
-</video>
+https://github.com/user-attachments/assets/f24e2ae9-c765-4f58-9eed-c022746c4881
 
 ## 🌟 Features
 
