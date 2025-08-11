@@ -11,9 +11,13 @@
   [![Socket.IO](https://img.shields.io/badge/Socket.IO-010101?logo=socket.io&logoColor=white)](https://socket.io/)
 </div>
 
-## 🌟 Demo
+## 🌟 Play Now
 
-https://huy-lv.github.io/tetris
+**🎮 Play Now:** https://huy-lv.github.io/tetris
+
+**📹 Watch Demo:**
+
+https://github.com/huy-lv/tetris-coop/assets/demo.mp4
 
 ## 🌟 Features
 
