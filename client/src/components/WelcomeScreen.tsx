@@ -15,9 +15,10 @@ import {
   Tabs,
   Tab,
   Divider,
+  IconButton,
 } from "@mui/material";
 import { keyframes } from "@emotion/react";
-import { AddRounded, LoginRounded } from "@mui/icons-material";
+import { AddRounded, LoginRounded, GitHub } from "@mui/icons-material";
 import gameConsole from "../assets/game-console.png";
 
 interface WelcomeScreenProps {
@@ -326,6 +327,30 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                     </Card>
                   ))}
                 </Stack>
+              </Box>
+
+              <Divider
+                sx={{ my: 3, borderColor: "rgba(255, 255, 255, 0.1)" }}
+              />
+
+              {/* GitHub Link */}
+              <Box textAlign="center">
+                <IconButton
+                  component="a"
+                  href="https://github.com/huylv/tetris-coop"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  sx={{
+                    color: "text.secondary",
+                    transition: "all 0.3s ease",
+                    "&:hover": {
+                      color: "primary.main",
+                      transform: "scale(1.1)",
+                    },
+                  }}
+                >
+                  <GitHub sx={{ fontSize: 32 }} />
+                </IconButton>
               </Box>
             </CardContent>
           </Card>

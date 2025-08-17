@@ -3,13 +3,36 @@ import http from "http";
 import { Server } from "socket.io";
 import cors from "cors";
 
+// Utility function to format log with timestamp
+const logWithTimestamp = (
+  message: string,
+  type: "log" | "info" | "warn" | "error" = "log"
+) => {
+  const timestamp = new Date().toISOString();
+  const formattedMessage = `[${timestamp}] ${message}`;
+
+  switch (type) {
+    case "info":
+      console.info(formattedMessage);
+      break;
+    case "warn":
+      console.warn(formattedMessage);
+      break;
+    case "error":
+      console.error(formattedMessage);
+      break;
+    default:
+      console.log(formattedMessage);
+  }
+};
+
 // Production config - disable console.log in production
-if (process.env.NODE_ENV === "production") {
-  console.log = () => {};
-  console.info = () => {};
-  console.warn = () => {};
-  // Keep console.error for debugging critical issues
-}
+// if (process.env.NODE_ENV === "production") {
+//   console.log = () => {};
+//   console.info = () => {};
+//   console.warn = () => {};
+//   // Keep console.error for debugging critical issues
+// }
 
 const app = express();
 const server = http.createServer(app);
@@ -154,7 +177,7 @@ class GameRoom implements GameRoomData {
 
 // Socket.IO connection handling
 io.on("connection", (socket) => {
-  console.log(`Player connected: ${socket.id}`);
+  logWithTimestamp(`Player connected: ${socket.id}`);
 
   // Join room
   socket.on("join_room", (data) => {
@@ -216,7 +239,7 @@ io.on("connection", (socket) => {
       isHost: room.hostSocketId === socket.id,
     });
 
-    console.log(
+    logWithTimestamp(
       `${playerData.name} joined room ${roomCode}. Total players: ${room.players.size}`
     );
   });
@@ -247,7 +270,7 @@ io.on("connection", (socket) => {
       roomCode: playerInfo.roomCode,
     });
 
-    console.log(
+    logWithTimestamp(
       `Game started in room ${playerInfo.roomCode} by ${playerInfo.name}. Total players: ${room.players.size}`
     );
   });
@@ -350,7 +373,7 @@ io.on("connection", (socket) => {
     const room = rooms.get(playerInfo.roomCode);
     if (!room || !room.isStarted) return;
 
-    console.log(
+    logWithTimestamp(
       `🔄 Game paused by: ${playerInfo.name} in room: ${playerInfo.roomCode}`
     );
 
@@ -369,7 +392,7 @@ io.on("connection", (socket) => {
     const room = rooms.get(playerInfo.roomCode);
     if (!room || !room.isStarted) return;
 
-    console.log(
+    logWithTimestamp(
       `▶️ Game resumed by: ${playerInfo.name} in room: ${playerInfo.roomCode}`
     );
 
@@ -388,7 +411,7 @@ io.on("connection", (socket) => {
     const room = rooms.get(playerInfo.roomCode);
     if (!room) return;
 
-    console.log(
+    logWithTimestamp(
       `💥 ${playerInfo.name} sending ${data.garbageRows} garbage rows to opponents`
     );
 
@@ -401,7 +424,7 @@ io.on("connection", (socket) => {
 
   // Handle disconnect
   socket.on("disconnect", () => {
-    console.log(`Player disconnected: ${socket.id}`);
+    logWithTimestamp(`Player disconnected: ${socket.id}`);
 
     const playerInfo = players.get(socket.id);
     if (playerInfo) {
@@ -415,7 +438,7 @@ io.on("connection", (socket) => {
         if (room.players.size === 0) {
           // Remove empty room
           rooms.delete(playerInfo.roomCode);
-          console.log(`Room ${playerInfo.roomCode} deleted (empty)`);
+          logWithTimestamp(`Room ${playerInfo.roomCode} deleted (empty)`);
         } else {
           // Get updated players list
           const currentPlayers = room.getPlayersData();
@@ -450,13 +473,15 @@ app.post("/api/rooms", (req, res) => {
       ? requestedRoomCode.toUpperCase()
       : generateRoomCode();
 
-    console.log(
+    logWithTimestamp(
       `🔧 Creating room - requested: ${requestedRoomCode}, final: ${roomCode}`
     );
-    console.log(`📊 Current rooms: ${Array.from(rooms.keys()).join(", ")}`);
+    logWithTimestamp(
+      `📊 Current rooms: ${Array.from(rooms.keys()).join(", ")}`
+    );
 
     if (requestedRoomCode && rooms.has(roomCode)) {
-      console.log(`❌ Room ${roomCode} already exists, returning 409`);
+      logWithTimestamp(`❌ Room ${roomCode} already exists, returning 409`);
       return res.status(409).json({ error: "Room already exists" });
     }
 
@@ -470,7 +495,8 @@ app.post("/api/rooms", (req, res) => {
       playerName: playerName.trim(),
     });
   } catch (error) {
-    console.error("Error creating room:", error);
+    logWithTimestamp("Error creating room:", "error");
+    console.error(error);
     res.status(500).json({ error: "Failed to create room" });
   }
 });
@@ -510,7 +536,8 @@ app.get("/api/rooms/:roomCode", (req, res) => {
       hostSocketId: room.hostSocketId,
     });
   } catch (error) {
-    console.error("Error checking room:", error);
+    logWithTimestamp("Error checking room:", "error");
+    console.error(error);
     res.status(500).json({ error: "Failed to check room" });
   }
 });
@@ -545,14 +572,15 @@ app.delete("/api/rooms/:roomCode", (req, res) => {
 
     // Remove room
     rooms.delete(normalizedRoomCode);
-    console.log(`🗑️ Room ${normalizedRoomCode} deleted`);
+    logWithTimestamp(`🗑️ Room ${normalizedRoomCode} deleted`);
 
     res.json({
       message: "Room deleted successfully",
       roomCode: normalizedRoomCode,
     });
   } catch (error) {
-    console.error("Error deleting room:", error);
+    logWithTimestamp("Error deleting room:", "error");
+    console.error(error);
     res.status(500).json({ error: "Failed to delete room" });
   }
 });
@@ -565,6 +593,8 @@ app.get("/health", (req, res) => {
 const PORT = process.env.PORT || 3001;
 
 server.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📊 Health check available at http://localhost:${PORT}/health`);
+  logWithTimestamp(`🚀 Server running on port ${PORT}`);
+  logWithTimestamp(
+    `📊 Health check available at http://localhost:${PORT}/health`
+  );
 });
